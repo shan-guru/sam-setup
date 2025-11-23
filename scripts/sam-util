@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# sams-util - Global SAM utility CLI
+# sam-util - Global SAM utility CLI
 # Can be run from anywhere to manage SAM projects
 
 set -e
