@@ -1,0 +1,1671 @@
+#!/bin/bash
+
+# sams-util - Global SAM utility CLI
+# Can be run from anywhere to manage SAM projects
+
+set -e
+
+# Detect if colors are supported
+if [ -t 1 ] && command -v tput > /dev/null 2>&1; then
+    # Terminal supports colors
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    RED='\033[0;31m'
+    BLUE='\033[0;34m'
+    NC='\033[0m'
+else
+    # No color support (output redirected or no tput)
+    GREEN=''
+    YELLOW=''
+    RED=''
+    BLUE=''
+    NC=''
+fi
+
+# Version
+VERSION="1.0.0"
+
+# Find SAM project directory
+find_sam_project() {
+    local current_dir="$PWD"
+    local search_dir="$current_dir"
+    
+    # Look for project markers
+    while [ "$search_dir" != "/" ]; do
+        if [ -f "$search_dir/sam/template.yaml" ] || [ -f "$search_dir/sam/template.yml" ] || \
+           [ -f "$search_dir/config/config.yaml" ]; then
+            echo "$search_dir"
+            return 0
+        fi
+        search_dir="$(dirname "$search_dir")"
+    done
+    
+    return 1
+}
+
+# Show help
+show_help() {
+    local command="${1:-}"
+    
+    if [ -n "$command" ]; then
+        show_command_help "$command"
+        return
+    fi
+    
+    echo -e "${BLUE}sams-util v${VERSION}${NC} - Global SAM Project Utility"
+    echo ""
+    echo -e "${GREEN}Usage:${NC}"
+    echo "    sams-util <command> [options]"
+    echo ""
+    echo -e "${GREEN}Commands:${NC}"
+    echo "    start           Start DynamoDB Local and SAM Local API"
+    echo "    stop            Stop all services and clean up"
+    echo "    restart         Force restart (stop and start fresh)"
+    echo "    verify          Verify setup and prerequisites"
+    echo "    db-setup        Set up DynamoDB table (specify file if needed)"
+    echo "    deploy          Deploy SAM application to AWS"
+    echo "    status          Show status of running services"
+    echo "    help [command]  Show help message or help for specific command"
+    echo ""
+    echo -e "${GREEN}Options:${NC}"
+    echo "    --project DIR   Specify project directory (default: auto-detect)"
+    echo "    --config FILE   Specify config file"
+    echo "    --profile NAME  Use specific AWS profile (see: sams-util help profile)"
+    echo "    --help          Show help for specific command"
+    echo ""
+    echo -e "${GREEN}Examples:${NC}"
+    echo "    sams-util start                 # Start from any directory"
+    echo "    sams-util stop                  # Stop services"
+    echo "    sams-util restart                # Restart everything"
+    echo "    sams-util verify                 # Verify setup"
+    echo "    sams-util db-setup               # Set up DynamoDB table"
+    echo "    sams-util db-setup table.json    # Set up with specific file"
+    echo "    sams-util deploy                 # Deploy to AWS (requires AWS credentials)"
+    echo "    sams-util --profile prod deploy  # Deploy with specific AWS profile"
+    echo "    sams-util status                 # Check status"
+    echo "    sams-util setup                  # Initialize Node.js project (default)"
+    echo "    sams-util setup --runtime python # Initialize Python project"
+    echo "    sams-util setup --runtime java   # Initialize Java project"
+    echo ""
+    echo -e "${GREEN}Getting Help:${NC}"
+    echo "    sams-util help                  # Show this help"
+    echo "    sams-util help deploy           # Show detailed help for deploy"
+    echo "    sams-util help profile          # Show help for --profile option"
+    echo "    sams-util deploy --help         # Same as: sams-util help deploy"
+    echo ""
+    echo -e "${GREEN}Project Detection:${NC}"
+    echo "    The utility automatically finds SAM projects by looking for:"
+    echo "    - sam/template.yaml"
+    echo "    - config/config.yaml"
+    echo ""
+    echo "    Or specify with: sams-util --project /path/to/project <command>"
+}
+
+# Show command-specific help
+show_command_help() {
+    local command="$1"
+    
+    case "$command" in
+        deploy)
+            echo -e "${BLUE}Deploy Command Help${NC}"
+            echo ""
+            echo -e "${GREEN}Description:${NC}"
+            echo "    Deploy your SAM application to AWS using CloudFormation."
+            echo ""
+            echo -e "${GREEN}Usage:${NC}"
+            echo "    sams-util deploy [options]"
+            echo "    sams-util --profile <profile> deploy"
+            echo ""
+            echo -e "${GREEN}Prerequisites:${NC}"
+            echo "    1. AWS CLI configured with valid credentials"
+            echo "       Run: aws configure"
+            echo ""
+            echo "    2. Update template.yaml for production:"
+            echo "       - Remove local DYNAMODB_ENDPOINT (or set to AWS endpoint)"
+            echo "       - Update Lambda code to use AWS DynamoDB"
+            echo ""
+            echo "    3. Create DynamoDB table in AWS (if needed):"
+            echo "       aws dynamodb create-table --table-name TestTable ..."
+            echo ""
+            echo -e "${GREEN}Options:${NC}"
+            echo "    --profile NAME    Use specific AWS profile"
+            echo "                     Example: sams-util --profile prod deploy"
+            echo ""
+            echo -e "${GREEN}What it does:${NC}"
+            echo "    1. Verifies AWS credentials are configured"
+            echo "    2. Shows your AWS account information"
+            echo "    3. Checks for local endpoints in template (warns if found)"
+            echo "    4. Builds the SAM application"
+            echo "    5. Runs interactive deployment (sam deploy --guided)"
+            echo ""
+            echo -e "${GREEN}Examples:${NC}"
+            echo "    # Deploy with default AWS profile"
+            echo "    sams-util deploy"
+            echo ""
+            echo "    # Deploy with specific profile"
+            echo "    sams-util --profile production deploy"
+            echo ""
+            echo -e "${GREEN}After Deployment:${NC}"
+            echo "    Get API endpoint:"
+            echo "    aws cloudformation describe-stacks --stack-name <stack> --query 'Stacks[0].Outputs'"
+            echo ""
+            echo -e "${YELLOW}For more details, see README.md Deployment section${NC}"
+            ;;
+        profile)
+            echo -e "${BLUE}Profile Option Help${NC}"
+            echo ""
+            echo -e "${GREEN}Description:${NC}"
+            echo "    Use a specific AWS CLI profile for commands that interact with AWS."
+            echo ""
+            echo -e "${GREEN}Usage:${NC}"
+            echo "    sams-util --profile <profile-name> <command>"
+            echo ""
+            echo -e "${GREEN}Setting up AWS Profiles:${NC}"
+            echo "    1. Configure a named profile:"
+            echo "       aws configure --profile myprofile"
+            echo ""
+            echo "    2. List configured profiles:"
+            echo "       aws configure list-profiles"
+            echo ""
+            echo "    3. Verify profile credentials:"
+            echo "       aws sts get-caller-identity --profile myprofile"
+            echo ""
+            echo -e "${GREEN}When to use:${NC}"
+            echo "    - Deploying to different AWS accounts (dev, staging, prod)"
+            echo "    - Using different regions"
+            echo "    - Working with multiple AWS accounts"
+            echo ""
+            echo -e "${GREEN}Examples:${NC}"
+            echo "    # Deploy to production account"
+            echo "    sams-util --profile prod deploy"
+            echo ""
+            echo "    # Deploy to development account"
+            echo "    sams-util --profile dev deploy"
+            echo ""
+            echo "    # Check status (doesn't need profile)"
+            echo "    sams-util status"
+            echo ""
+            echo -e "${GREEN}Commands that use --profile:${NC}"
+            echo "    - deploy (requires AWS credentials)"
+            echo ""
+            echo -e "${GREEN}Commands that don't need --profile:${NC}"
+            echo "    - start, stop, restart (local development)"
+            echo "    - verify, status (local checks)"
+            echo "    - db-setup (local DynamoDB)"
+            ;;
+        start|stop|restart|verify|db-setup|status|setup)
+            local cmd_title=$(echo "$command" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')
+            echo -e "${BLUE}${cmd_title} Command Help${NC}"
+            echo ""
+            case "$command" in
+                start)
+                    echo -e "${GREEN}Description:${NC}"
+                    echo "    Start DynamoDB Local and SAM Local API for local development."
+                    echo ""
+                    echo -e "${GREEN}Usage:${NC}"
+                    echo "    sams-util start"
+                    echo ""
+                    echo -e "${GREEN}What it does:${NC}"
+                    echo "    1. Starts DynamoDB Local container"
+                    echo "    2. Sets up DynamoDB table (if setup-table.js exists)"
+                    echo "    3. Starts SAM Local API on port 3000"
+                    ;;
+                stop)
+                    echo -e "${GREEN}Description:${NC}"
+                    echo "    Stop all local services and clean up containers."
+                    echo ""
+                    echo -e "${GREEN}Usage:${NC}"
+                    echo "    sams-util stop"
+                    ;;
+                restart)
+                    echo -e "${GREEN}Description:${NC}"
+                    echo "    Force restart: stop all services and start fresh."
+                    echo ""
+                    echo -e "${GREEN}Usage:${NC}"
+                    echo "    sams-util restart"
+                    ;;
+                verify)
+                    echo -e "${GREEN}Description:${NC}"
+                    echo "    Verify setup and prerequisites."
+                    echo ""
+                    echo -e "${GREEN}Usage:${NC}"
+                    echo "    sams-util verify"
+                    echo ""
+                    echo -e "${GREEN}Checks:${NC}"
+                    echo "    - SAM CLI installation"
+                    echo "    - Docker installation and status"
+                    echo "    - Node.js and npm"
+                    echo "    - Project files and configuration"
+                    ;;
+                db-setup)
+                    echo -e "${GREEN}Description:${NC}"
+                    echo "    Set up DynamoDB table in DynamoDB Local."
+                    echo ""
+                    echo -e "${GREEN}Usage:${NC}"
+                    echo "    sams-util db-setup [file]"
+                    echo ""
+                    echo -e "${GREEN}Examples:${NC}"
+                    echo "    sams-util db-setup"
+                    echo "    sams-util db-setup scripts/custom-setup.js"
+                    ;;
+                status)
+                    echo -e "${GREEN}Description:${NC}"
+                    echo "    Show status of running services."
+                    echo ""
+                    echo -e "${GREEN}Usage:${NC}"
+                    echo "    sams-util status"
+                    echo ""
+                    echo -e "${GREEN}Shows:${NC}"
+                    echo "    - DynamoDB Local container status"
+                    echo "    - SAM Local API process status"
+                    ;;
+                setup)
+                    echo -e "${GREEN}Description:${NC}"
+                    echo "    Initialize project with all required files."
+                    echo ""
+                    echo -e "${GREEN}Usage:${NC}"
+                    echo "    sams-util setup [--runtime RUNTIME] [--force]"
+                    echo ""
+                    echo -e "${GREEN}What it creates:${NC}"
+                    echo "    - config/docker-compose.yml"
+                    echo "    - config/config.yaml.example"
+                    echo "    - config/config.yaml (from example)"
+                    echo "    - sam/template.yaml (runtime-specific)"
+                    echo "    - src/app.js (Node.js) or src/app.py (Python) or src/main/java/... (Java)"
+                    echo "    - package.json (Node.js) or requirements.txt (Python) or pom.xml (Java)"
+                    echo "    - scripts/setup-table.js"
+                    echo "    - .gitignore"
+                    echo ""
+                    echo -e "${GREEN}Options:${NC}"
+                    echo "    --runtime RUNTIME    Runtime: nodejs (default), python, or java"
+                    echo "    --force              Overwrite existing files"
+                    echo ""
+                    echo -e "${GREEN}Examples:${NC}"
+                    echo "    sams-util setup                      # Create Node.js project (default)"
+                    echo "    sams-util setup --runtime python     # Create Python project"
+                    echo "    sams-util setup --runtime java       # Create Java project"
+                    echo "    sams-util setup --force               # Overwrite existing files"
+                    ;;
+            esac
+            ;;
+        *)
+            echo -e "${RED}Unknown command: $command${NC}"
+            echo ""
+            echo -e "${YELLOW}Available commands for help:${NC}"
+            echo "    deploy, profile, start, stop, restart, verify, db-setup, status, setup"
+            echo ""
+            echo "Use: sams-util help"
+            ;;
+    esac
+}
+
+# Show status
+show_status() {
+    local project_dir="$1"
+    
+    echo -e "${BLUE}=== SAM Project Status ===${NC}"
+    echo -e "Project: ${GREEN}$project_dir${NC}"
+    echo ""
+    
+    # Check DynamoDB Local
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "dynamodb-local"; then
+        echo -e "${GREEN}✓ DynamoDB Local: Running${NC}"
+        docker ps --filter "name=dynamodb-local" --format "  Container: {{.Names}} | Status: {{.Status}} | Ports: {{.Ports}}"
+    else
+        echo -e "${RED}✗ DynamoDB Local: Stopped${NC}"
+    fi
+    
+    # Check SAM Local API
+    if lsof -ti:3000 > /dev/null 2>&1; then
+        echo -e "${GREEN}✓ SAM Local API: Running on port 3000${NC}"
+        local pid=$(lsof -ti:3000)
+        echo -e "  PID: $pid"
+    else
+        echo -e "${RED}✗ SAM Local API: Stopped${NC}"
+    fi
+    
+    echo ""
+}
+
+# Main function
+main() {
+    local command="${1:-help}"
+    local project_dir=""
+    local config_file=""
+    local aws_profile=""
+    
+    # Handle help commands that don't require a project
+    if [[ "$command" == "--help" ]] || [[ "$command" == "-h" ]]; then
+        show_help
+        exit 0
+    fi
+    
+    # Handle help command with optional subcommand
+    if [[ "$command" == "help" ]]; then
+        local help_subcommand="${2:-}"
+        show_help "$help_subcommand"
+        exit 0
+    fi
+    
+    # Parse global options
+    shift || true
+    remaining_args=()
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --project)
+                project_dir="$2"
+                shift 2
+                ;;
+            --config)
+                config_file="$2"
+                shift 2
+                ;;
+            --profile)
+                aws_profile="$2"
+                export AWS_PROFILE="$aws_profile"
+                shift 2
+                ;;
+            --help|-h)
+                # Show help for the command (if it's a command that supports --help)
+                if [[ "$command" == "deploy" ]] || [[ "$command" == "start" ]] || \
+                   [[ "$command" == "stop" ]] || [[ "$command" == "restart" ]] || \
+                   [[ "$command" == "verify" ]] || [[ "$command" == "db-setup" ]] || \
+                   [[ "$command" == "status" ]] || [[ "$command" == "setup" ]]; then
+                    show_command_help "$command"
+                else
+                    show_help
+                fi
+                exit 0
+                ;;
+            *)
+                remaining_args+=("$1")
+                shift
+                ;;
+        esac
+    done
+    
+    # Setup command can work without existing project (uses current directory)
+    if [[ "$command" == "setup" ]]; then
+        if [ -z "$project_dir" ]; then
+            project_dir="$PWD"
+        fi
+        echo -e "${BLUE}Setting up project in: ${GREEN}$project_dir${NC}"
+        echo ""
+    else
+        # Find project if not specified
+        if [ -z "$project_dir" ]; then
+            if ! project_dir=$(find_sam_project); then
+                echo -e "${RED}Error: No SAM project found!${NC}"
+                echo -e "${YELLOW}Please run from a SAM project directory or use --project DIR${NC}"
+                exit 1
+            fi
+        fi
+        
+        if [ ! -d "$project_dir" ]; then
+            echo -e "${RED}Error: Project directory not found: $project_dir${NC}"
+            exit 1
+        fi
+        
+        echo -e "${BLUE}Using project: ${GREEN}$project_dir${NC}"
+        echo ""
+    fi
+    
+    # Execute command
+    case "$command" in
+        start)
+            cd "$project_dir"
+            if [ -n "$config_file" ]; then
+                ./scripts/start.sh --config "$config_file"
+            else
+                ./scripts/start.sh
+            fi
+            ;;
+        stop)
+            cd "$project_dir"
+            if [ -n "$config_file" ]; then
+                ./scripts/shutdown.sh "$config_file"
+            else
+                ./scripts/shutdown.sh
+            fi
+            ;;
+        restart)
+            cd "$project_dir"
+            if [ -n "$config_file" ]; then
+                ./scripts/start.sh --restart --config "$config_file"
+            else
+                ./scripts/start.sh --restart
+            fi
+            ;;
+        verify)
+            cd "$project_dir"
+            ./scripts/verify-setup.sh
+            ;;
+        db-setup)
+            cd "$project_dir"
+            local setup_file="${1:-scripts/setup-table.js}"
+            if [ -f "$setup_file" ]; then
+                echo -e "${YELLOW}Setting up DynamoDB table with: $setup_file${NC}"
+                node "$setup_file"
+            elif [ -f "scripts/setup-table.js" ]; then
+                echo -e "${YELLOW}Setting up DynamoDB table...${NC}"
+                node scripts/setup-table.js
+            else
+                echo -e "${RED}Error: Setup file not found: $setup_file${NC}"
+                echo -e "${YELLOW}Available setup files:${NC}"
+                find "$project_dir" -name "*setup*.js" -o -name "*setup*.sh" 2>/dev/null | head -5
+                exit 1
+            fi
+            ;;
+        deploy)
+            cd "$project_dir"
+            echo -e "${BLUE}=== Deploying SAM Application to AWS ===${NC}"
+            echo ""
+            
+            # Check AWS credentials
+            if [ -n "$aws_profile" ]; then
+                echo -e "${BLUE}Using AWS profile: $aws_profile${NC}"
+                export AWS_PROFILE="$aws_profile"
+            fi
+            
+            # Verify AWS credentials
+            if ! aws sts get-caller-identity > /dev/null 2>&1; then
+                echo -e "${RED}Error: AWS credentials not configured!${NC}"
+                echo -e "${YELLOW}Please configure AWS CLI:${NC}"
+                echo "  aws configure"
+                echo "  # or"
+                echo "  aws configure --profile <profile-name>"
+                echo ""
+                echo -e "${YELLOW}Or use: sams-util --profile <profile> deploy${NC}"
+                exit 1
+            fi
+            
+            # Show current AWS identity
+            echo -e "${GREEN}AWS Account Information:${NC}"
+            aws sts get-caller-identity --output table 2>/dev/null || true
+            echo ""
+            
+            # Check if template needs production updates
+            TEMPLATE_FILE="$project_dir/sam/template.yaml"
+            if [ ! -f "$TEMPLATE_FILE" ]; then
+                TEMPLATE_FILE="$project_dir/sam/template.yml"
+            fi
+            
+            if [ -f "$TEMPLATE_FILE" ] && grep -q "localhost\|192.168\|127.0.0.1" "$TEMPLATE_FILE" 2>/dev/null; then
+                echo -e "${YELLOW}⚠ Warning: Template contains local endpoints!${NC}"
+                echo -e "${YELLOW}For production deployment, update DYNAMODB_ENDPOINT in template.yaml${NC}"
+                echo -e "${YELLOW}Remove or comment out DYNAMODB_ENDPOINT to use AWS DynamoDB${NC}"
+                echo ""
+                if [ -t 0 ]; then
+                    # Only prompt if running interactively
+                    read -p "Continue anyway? (y/n) " -n 1 -r
+                    echo
+                    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                        echo -e "${YELLOW}Deployment cancelled${NC}"
+                        exit 0
+                    fi
+                else
+                    echo -e "${YELLOW}Non-interactive mode: Continuing with warning...${NC}"
+                fi
+            fi
+            
+            # Build before deploy
+            echo -e "${YELLOW}Building SAM application...${NC}"
+            if [ -f "$project_dir/sam/template.yaml" ]; then
+                TEMPLATE_FILE="$project_dir/sam/template.yaml"
+            elif [ -f "$project_dir/sam/template.yml" ]; then
+                TEMPLATE_FILE="$project_dir/sam/template.yml"
+            else
+                echo -e "${RED}Error: SAM template not found!${NC}"
+                exit 1
+            fi
+            
+            if ! sam build --template "$TEMPLATE_FILE" --build-dir "$project_dir/.aws-sam/build" --base-dir "$project_dir" > /dev/null 2>&1; then
+                echo -e "${RED}Error: SAM build failed!${NC}"
+                echo -e "${YELLOW}Run 'sam build' manually to see detailed errors${NC}"
+                exit 1
+            fi
+            echo -e "${GREEN}✓ Build successful${NC}"
+            echo ""
+            
+            # Deploy
+            echo -e "${YELLOW}Starting deployment...${NC}"
+            echo -e "${BLUE}Follow the prompts to configure your deployment${NC}"
+            echo ""
+            sam deploy --guided --template-file "$project_dir/.aws-sam/build/template.yaml"
+            ;;
+        status)
+            show_status "$project_dir"
+            ;;
+        setup)
+            setup_project "$project_dir" "${remaining_args[@]}"
+            ;;
+        help|--help|-h)
+            show_help
+            ;;
+        *)
+            echo -e "${RED}Error: Unknown command: $command${NC}"
+            echo ""
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+# Setup project - create all necessary files
+setup_project() {
+    local project_dir="$1"
+    local force_overwrite=false
+    local runtime="nodejs"
+    
+    # Parse setup-specific arguments
+    local setup_args=("${@:2}")
+    for arg in "${setup_args[@]}"; do
+        case "$arg" in
+            --force)
+                force_overwrite=true
+                ;;
+            --runtime)
+                # Get next argument as runtime
+                for i in "${!setup_args[@]}"; do
+                    if [[ "${setup_args[$i]}" == "--runtime" ]]; then
+                        runtime="${setup_args[$((i+1))]}"
+                        break
+                    fi
+                done
+                ;;
+            --runtime=*)
+                runtime="${arg#*=}"
+                ;;
+        esac
+    done
+    
+    # Validate runtime
+    case "$runtime" in
+        nodejs|python|java)
+            ;;
+        *)
+            echo -e "${RED}Error: Invalid runtime: $runtime${NC}"
+            echo -e "${YELLOW}Supported runtimes: nodejs, python, java${NC}"
+            exit 1
+            ;;
+    esac
+    
+    echo -e "${BLUE}=== Setting Up SAM Project ===${NC}"
+    echo ""
+    echo -e "Project directory: ${GREEN}$project_dir${NC}"
+    echo -e "Runtime: ${GREEN}$runtime${NC}"
+    echo ""
+    
+    # Create directories
+    echo -e "${YELLOW}Creating directories...${NC}"
+    mkdir -p "$project_dir/config"
+    mkdir -p "$project_dir/sam"
+    mkdir -p "$project_dir/src"
+    mkdir -p "$project_dir/scripts"
+    mkdir -p "$project_dir/docs"
+    echo -e "${GREEN}✓ Directories created${NC}"
+    echo ""
+    
+    # Function to create file if it doesn't exist
+    create_file_if_not_exists() {
+        local file_path="$1"
+        local content="$2"
+        local description="$3"
+        
+        if [ -f "$file_path" ] && [ "$force_overwrite" = false ]; then
+            echo -e "${YELLOW}⚠ Skipping $description (already exists)${NC}"
+            echo -e "   Use --force to overwrite: $file_path"
+            return 0
+        fi
+        
+        echo "$content" > "$file_path"
+        echo -e "${GREEN}✓ Created $description${NC}"
+    }
+    
+    # 1. config/docker-compose.yml
+    create_file_if_not_exists "$project_dir/config/docker-compose.yml" \
+        "services:
+  dynamodb-local:
+    image: amazon/dynamodb-local
+    container_name: dynamodb-local
+    command: [\"-jar\", \"DynamoDBLocal.jar\", \"-sharedDb\"]
+    ports:
+      - \"8000:8000\"
+    # Note: network_mode: host doesn't work properly on macOS Docker Desktop
+    # Using bridge network with port mapping instead
+    # Lambda containers can connect via host.docker.internal:8000
+" \
+        "config/docker-compose.yml"
+    
+    # 2. config/config.yaml.example
+    create_file_if_not_exists "$project_dir/config/config.yaml.example" \
+        "# Example configuration file
+# Copy this to config.yaml and update with your values
+# For local development with DynamoDB Local, use dummy credentials
+
+aws:
+  # For local SAM development with DynamoDB Local, use dummy values
+  # For real AWS operations, AWS SDK will use AWS CLI credentials automatically
+  access_key_id: \"test\"
+  secret_access_key: \"test\"
+  region: \"us-east-1\"
+
+dynamodb_local:
+  image: \"amazon/dynamodb-local\"
+  port: 8000
+  container_name: \"dynamodb-local\"
+  # Host/IP address for Lambda containers to connect to DynamoDB Local
+  # Auto-detected during setup, but you can manually change it here
+  # Options: \"host.docker.internal\" (recommended for Docker Desktop), \"192.168.x.x\" (your host IP), \"localhost\"
+  host: \"host.docker.internal\" # Use host.docker.internal for Docker Desktop (works on macOS/Windows)
+  # Alternative: Use your host IP (e.g., \"192.168.50.13\") if host.docker.internal doesn't work
+
+sam:
+  port: 3000
+  warm_containers: \"EAGER\"
+  docker_network: \"\" # Network mode: \"\" for bridge network (recommended for macOS/Windows), \"host\" for Linux
+  # Note: On macOS/Windows Docker Desktop, host network mode doesn't work properly
+  # Use bridge network (empty string) and connect via host.docker.internal
+" \
+        "config/config.yaml.example"
+    
+    # 3. config/config.yaml (from example, with host.docker.internal as default)
+    if [ ! -f "$project_dir/config/config.yaml" ]; then
+        # Use host.docker.internal as default (works with Docker Desktop on macOS/Windows)
+        # User can change to their IP if needed
+        DEFAULT_HOST="host.docker.internal"
+        
+        # Create config.yaml with host.docker.internal
+        cat > "$project_dir/config/config.yaml" <<EOF
+# Configuration file (auto-generated by sams-util setup)
+# For local development with DynamoDB Local, use dummy credentials
+# For real AWS operations, AWS SDK will use AWS CLI credentials automatically
+
+aws:
+  # For local SAM development with DynamoDB Local, use dummy values
+  # For real AWS operations, AWS SDK will use AWS CLI credentials automatically
+  access_key_id: "test"
+  secret_access_key: "test"
+  region: "us-east-1"
+
+dynamodb_local:
+  image: "amazon/dynamodb-local"
+  port: 8000
+  container_name: "dynamodb-local"
+  # Host/IP address for Lambda containers to connect to DynamoDB Local
+  # Options: "host.docker.internal" (recommended for Docker Desktop), "192.168.x.x" (your host IP), "localhost"
+  host: "${DEFAULT_HOST}" # Use host.docker.internal for Docker Desktop (works on macOS/Windows)
+  # Alternative: Use your host IP (e.g., "192.168.50.13") if host.docker.internal doesn't work
+  # To find your IP: ifconfig | grep "inet " | grep -v "127.0.0.1"
+
+sam:
+  port: 3000
+  warm_containers: "EAGER"
+  docker_network: "" # Network mode: "" for bridge network (recommended for macOS/Windows), "host" for Linux
+  # Note: On macOS/Windows Docker Desktop, host network mode doesn't work properly
+  # Use bridge network (empty string) and connect via host.docker.internal
+EOF
+        echo -e "${GREEN}✓ Created config/config.yaml with host: ${DEFAULT_HOST}${NC}"
+    else
+        echo -e "${YELLOW}⚠ config/config.yaml already exists (skipping)${NC}"
+        echo -e "${YELLOW}  To update host/IP, edit config/config.yaml and set dynamodb_local.host${NC}"
+    fi
+    
+    # 4. sam/template.yaml (runtime-specific)
+    local template_runtime=""
+    local template_handler=""
+    case "$runtime" in
+        nodejs)
+            template_runtime="nodejs20.x"
+            template_handler="app.lambdaHandler"
+            ;;
+        python)
+            template_runtime="python3.12"
+            template_handler="app.lambda_handler"
+            ;;
+        java)
+            template_runtime="java21"
+            template_handler="com.example.App::handleRequest"
+            ;;
+    esac
+    
+    # Determine DynamoDB endpoint from config (if available)
+    # Read host from config.yaml if it exists, otherwise use default
+    local dynamodb_host="host.docker.internal"
+    if [ -f "$project_dir/config/config.yaml" ]; then
+        local detected_host=$(grep -A 10 "dynamodb_local:" "$project_dir/config/config.yaml" | grep "host:" | head -1 | sed 's/.*host: *//' | sed 's/#.*$//' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | sed 's/^"\(.*\)"$/\1/' | sed "s/^'\(.*\)'$/\1/")
+        if [ -n "$detected_host" ]; then
+            dynamodb_host="$detected_host"
+        fi
+    fi
+    local dynamodb_endpoint="http://${dynamodb_host}:8000"
+    
+    create_file_if_not_exists "$project_dir/sam/template.yaml" \
+        "AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SAM template for DynamoDB Local testing
+
+Globals:
+  Function:
+    Timeout: 10
+    MemorySize: 128
+
+Resources:
+  HelloWorldFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../src
+      Handler: $template_handler
+      Runtime: $template_runtime
+      Architectures:
+      - x86_64
+      Environment:
+        Variables:
+          # DYNAMODB_ENDPOINT: Set from config.yaml dynamodb_local.host during startup
+          # This value is dynamically updated by start.sh based on config.yaml
+          # Can be overridden at runtime via environment variable
+          DYNAMODB_ENDPOINT: \"${dynamodb_endpoint}\" # Endpoint for DynamoDB Local (from config)
+      Events:
+        HelloWorld:
+          Type: Api
+          Properties:
+            Path: /hello
+            Method: get
+
+Outputs:
+  HelloWorldApi:
+    Description: \"API Gateway endpoint URL for Prod stage for Hello World function\"
+    Value: !Sub \"https://\${ServerlessRestApi}.execute-api.\${AWS::Region}.amazonaws.com/Prod/hello/\"
+  HelloWorldFunction:
+    Description: \"Hello World Lambda Function ARN\"
+    Value: !GetAtt HelloWorldFunction.Arn
+  HelloWorldFunctionIamRole:
+    Description: \"Implicit IAM Role created for Hello World function\"
+    Value: !GetAtt HelloWorldFunctionRole.Arn
+" \
+        "sam/template.yaml"
+    
+    # 5. Create runtime-specific application file
+    case "$runtime" in
+        nodejs)
+            create_file_if_not_exists "$project_dir/src/app.js" \
+                "const AWS = require('aws-sdk');
+
+// Determine DynamoDB endpoint based on environment
+// Priority: DYNAMODB_ENDPOINT env var > localhost (works with --docker-network host)
+// For Docker Desktop bridge mode, set DYNAMODB_ENDPOINT=http://host.docker.internal:8000
+function getDynamoDBEndpoint() {
+  if (process.env.DYNAMODB_ENDPOINT) {
+    return process.env.DYNAMODB_ENDPOINT;
+  }
+  // Default to host.docker.internal for Docker Desktop compatibility
+  // This works regardless of network mode
+  return 'http://host.docker.internal:8000';
+}
+
+const DYNAMODB_ENDPOINT = getDynamoDBEndpoint();
+
+const dynamodb = new AWS.DynamoDB.DocumentClient({
+  endpoint: DYNAMODB_ENDPOINT,
+  region: 'us-east-1',
+  accessKeyId: 'fake',
+  secretAccessKey: 'fake'
+});
+
+exports.lambdaHandler = async (event) => {
+  try {
+    console.log('Lambda invoked, connecting to DynamoDB at:', DYNAMODB_ENDPOINT);
+    
+    // Quick test table
+    await dynamodb.put({
+      TableName: 'TestTable',
+      Item: { id: '1', name: 'Demo' }
+    }).promise();
+
+    console.log('Successfully wrote to DynamoDB');
+    
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ message: 'DynamoDB Local works!' })
+    };
+  } catch (error) {
+    console.error('Error:', error);
+    
+    let errorBody = { message: 'Internal server error' };
+    
+    if (error.code === 'ResourceNotFoundException' || error.message.includes('Cannot do operations on a non-existent table')) {
+      errorBody = { 
+        message: 'Table does not exist',
+        error: 'TestTable not found in DynamoDB Local. Please run sams-util db-setup to create it.'
+      };
+    } else if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND' || error.message.includes('connect')) {
+      errorBody = { 
+        message: 'Connection error',
+        error: 'Cannot connect to DynamoDB Local',
+        endpoint: DYNAMODB_ENDPOINT
+      };
+    } else {
+      errorBody = { 
+        message: 'Internal server error',
+        error: error.message || String(error),
+        code: error.code || 'UNKNOWN'
+      };
+    }
+    
+    return {
+      statusCode: 500,
+      body: JSON.stringify(errorBody)
+    };
+  }
+};
+" \
+                "src/app.js"
+            ;;
+        python)
+            create_file_if_not_exists "$project_dir/src/app.py" \
+                "import json
+import os
+import boto3
+from botocore.exceptions import ClientError
+
+# Determine DynamoDB endpoint based on environment
+# Priority: DYNAMODB_ENDPOINT env var > host.docker.internal (Docker Desktop compatibility)
+# host.docker.internal works in both host and bridge network modes
+def get_dynamodb_endpoint():
+    endpoint = os.environ.get('DYNAMODB_ENDPOINT')
+    if endpoint:
+        return endpoint
+    # Default to host.docker.internal for Docker Desktop compatibility
+    # This works regardless of network mode
+    return 'http://host.docker.internal:8000'
+
+DYNAMODB_ENDPOINT = get_dynamodb_endpoint()
+
+# Create DynamoDB client
+dynamodb = boto3.resource(
+    'dynamodb',
+    endpoint_url=DYNAMODB_ENDPOINT,
+    region_name='us-east-1',
+    aws_access_key_id='fake',
+    aws_secret_access_key='fake'
+)
+
+def lambda_handler(event, context):
+    try:
+        print(f'Lambda invoked, connecting to DynamoDB at: {DYNAMODB_ENDPOINT}')
+        
+        # Quick test table
+        table = dynamodb.Table('TestTable')
+        table.put_item(
+            Item={
+                'id': '1',
+                'name': 'Demo'
+            }
+        )
+        
+        print('Successfully wrote to DynamoDB')
+        
+        return {
+            'statusCode': 200,
+            'body': json.dumps({'message': 'DynamoDB Local works!'})
+        }
+    except ClientError as e:
+        error_code = e.response.get('Error', {}).get('Code', 'UNKNOWN')
+        error_message = e.response.get('Error', {}).get('Message', str(e))
+        
+        print(f'Error: {error_code} - {error_message}')
+        
+        if error_code == 'ResourceNotFoundException' or 'non-existent table' in error_message:
+            error_body = {
+                'message': 'Table does not exist',
+                'error': 'TestTable not found in DynamoDB Local. Please run sams-util db-setup to create it.'
+            }
+        else:
+            error_body = {
+                'message': 'Internal server error',
+                'error': error_message,
+                'code': error_code
+            }
+        
+        return {
+            'statusCode': 500,
+            'body': json.dumps(error_body)
+        }
+    except Exception as e:
+        print(f'Error: {str(e)}')
+        return {
+            'statusCode': 500,
+            'body': json.dumps({
+                'message': 'Internal server error',
+                'error': str(e)
+            })
+        }
+" \
+                "src/app.py"
+            ;;
+        java)
+            # Create Java package structure
+            mkdir -p "$project_dir/src/main/java/com/example"
+            create_file_if_not_exists "$project_dir/src/main/java/com/example/App.java" \
+                "package com.example;
+
+import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
+import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
+import com.amazonaws.services.dynamodbv2.document.DynamoDB;
+import com.amazonaws.services.dynamodbv2.document.Item;
+import com.amazonaws.services.dynamodbv2.document.Table;
+import com.amazonaws.client.builder.AwsClientBuilder;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
+import java.util.HashMap;
+import java.util.Map;
+
+public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
+    
+    private static final String DYNAMODB_ENDPOINT = System.getenv().getOrDefault(\"DYNAMODB_ENDPOINT\", \"http://host.docker.internal:8000\");
+    
+    @Override
+    public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent event, Context context) {
+        APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent();
+        
+        try {
+            context.getLogger().log(\"Lambda invoked, connecting to DynamoDB at: \" + DYNAMODB_ENDPOINT);
+            
+            // Create DynamoDB client
+            AwsClientBuilder.EndpointConfiguration endpointConfig = 
+                new AwsClientBuilder.EndpointConfiguration(DYNAMODB_ENDPOINT, \"us-east-1\");
+            
+            AmazonDynamoDB client = AmazonDynamoDBClientBuilder.standard()
+                .withEndpointConfiguration(endpointConfig)
+                .withCredentials(new AWSStaticCredentialsProvider(
+                    new BasicAWSCredentials(\"fake\", \"fake\")))
+                .build();
+            
+            DynamoDB dynamoDB = new DynamoDB(client);
+            Table table = dynamoDB.getTable(\"TestTable\");
+            
+            // Put item
+            Item item = new Item()
+                .withPrimaryKey(\"id\", \"1\")
+                .withString(\"name\", \"Demo\");
+            table.putItem(item);
+            
+            context.getLogger().log(\"Successfully wrote to DynamoDB\");
+            
+            response.setStatusCode(200);
+            response.setBody(\"{\\\"message\\\": \\\"DynamoDB Local works!\\\"}\");
+            
+        } catch (Exception e) {
+            context.getLogger().log(\"Error: \" + e.getMessage());
+            
+            String errorBody = String.format(
+                \"{\\\"message\\\": \\\"Internal server error\\\", \\\"error\\\": \\\"%s\\\"}\",
+                e.getMessage().replace(\"\\\"\", \"\\\\\\\"\")
+            );
+            
+            response.setStatusCode(500);
+            response.setBody(errorBody);
+        }
+        
+        return response;
+    }
+}
+" \
+                "src/main/java/com/example/App.java"
+            ;;
+    esac
+    
+    # 6. Create runtime-specific dependency files
+    case "$runtime" in
+        nodejs)
+            create_file_if_not_exists "$project_dir/package.json" \
+                "{
+  \"name\": \"aws-sam-exp\",
+  \"version\": \"1.0.0\",
+  \"description\": \"AWS SAM experiment with DynamoDB Local\",
+  \"main\": \"app.js\",
+  \"scripts\": {
+    \"test\": \"echo \\\"Error: no test specified\\\" && exit 1\"
+  },
+  \"dependencies\": {
+    \"aws-sdk\": \"^2.1691.0\"
+  }
+}
+" \
+                "package.json"
+            ;;
+        python)
+            create_file_if_not_exists "$project_dir/requirements.txt" \
+                "boto3>=1.34.0
+" \
+                "requirements.txt"
+            ;;
+        java)
+            create_file_if_not_exists "$project_dir/pom.xml" \
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<project xmlns=\"http://maven.apache.org/POM/4.0.0\"
+         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"
+         xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">
+    <modelVersion>4.0.0</modelVersion>
+    
+    <groupId>com.example</groupId>
+    <artifactId>aws-sam-lambda</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+    
+    <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+    
+    <dependencies>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-lambda-java-core</artifactId>
+            <version>1.2.3</version>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-lambda-java-events</artifactId>
+            <version>3.11.3</version>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-dynamodb</artifactId>
+            <version>1.12.700</version>
+        </dependency>
+    </dependencies>
+    
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>21</source>
+                    <target>21</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+" \
+                "pom.xml"
+            ;;
+    esac
+    
+    # 8. Essential shell scripts
+    # Note: These scripts are required for sams-util to work properly
+    
+    # scripts/start.sh - Start DynamoDB Local and SAM Local API
+    create_file_if_not_exists "$project_dir/scripts/start.sh" \
+        "#!/bin/bash
+
+set -e
+
+# Get the directory where this script is located
+SCRIPT_DIR=\"\$(cd \"\$(dirname \"\${BASH_SOURCE[0]}\")\" && pwd)\"
+PROJECT_ROOT=\"\$(cd \"\$SCRIPT_DIR/..\" && pwd)\"
+
+# Colors for output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+CONFIG_FILE=\"\${1:-\$PROJECT_ROOT/config/config.yaml}\"
+
+if [ ! -f \"\$CONFIG_FILE\" ]; then
+    echo -e \"\${RED}Error: Config file '\$CONFIG_FILE' not found!\${NC}\"
+    exit 1
+fi
+
+echo -e \"\${YELLOW}Starting SAM Local Environment...\${NC}\"
+
+# Function to read YAML config
+read_yaml() {
+    local section=\"\$1\"
+    local key=\"\$2\"
+    awk \"/^\${section}:/{flag=1; next} /^[a-z_]+:/{flag=0} flag && /^  \${key}:/{print}\" \"\$CONFIG_FILE\" | \\
+        sed 's/^  [^:]*: *//' | \\
+        sed 's/#.*$//' | \\
+        sed 's/^[[:space:]]*//' | \\
+        sed 's/[[:space:]]*$//' | \\
+        sed 's/^\"\\(.*\\)\"\$/\1/' | \\
+        sed \"s/^'\\\\(.*\\\\)'\\\$/\\\\1/\" | \\
+        xargs
+}
+
+# Read config
+DOCKER_IMAGE=\$(read_yaml dynamodb_local image)
+DOCKER_PORT=\$(read_yaml dynamodb_local port)
+CONTAINER_NAME=\$(read_yaml dynamodb_local container_name)
+SAM_PORT=\$(read_yaml sam port)
+WARM_CONTAINERS=\$(read_yaml sam warm_containers)
+DOCKER_NETWORK=\$(read_yaml sam docker_network)
+
+# Start DynamoDB Local using docker-compose
+if [ -f \"\$PROJECT_ROOT/config/docker-compose.yml\" ]; then
+    cd \"\$PROJECT_ROOT/config\"
+    if docker ps -a --format '{{.Names}}' | grep -q \"^\${CONTAINER_NAME}\$\"; then
+        if docker ps --format '{{.Names}}' | grep -q \"^\${CONTAINER_NAME}\$\"; then
+            echo -e \"\${GREEN}✓ DynamoDB Local already running\${NC}\"
+        else
+            echo -e \"\${YELLOW}Starting existing DynamoDB Local container...\${NC}\"
+            docker start \"\$CONTAINER_NAME\"
+        fi
+    else
+        echo -e \"\${YELLOW}Starting DynamoDB Local...\${NC}\"
+        docker-compose up -d
+    fi
+    cd \"\$PROJECT_ROOT\"
+else
+    echo -e \"\${RED}Error: docker-compose.yml not found!\${NC}\"
+    exit 1
+fi
+
+echo -e \"\${GREEN}✓ DynamoDB Local is running on port \${DOCKER_PORT}\${NC}\"
+
+# Wait for DynamoDB to be fully ready (it may take a moment to start)
+echo -e \"\${YELLOW}Waiting for DynamoDB Local to be ready...\${NC}\"
+MAX_RETRIES=10
+RETRY_COUNT=0
+DYNAMODB_READY=false
+
+while [ \$RETRY_COUNT -lt \$MAX_RETRIES ]; do
+    if curl -s \"http://localhost:\${DOCKER_PORT}\" > /dev/null 2>&1 || \\
+       docker exec \"\${CONTAINER_NAME}\" curl -s \"http://localhost:8000\" > /dev/null 2>&1; then
+        DYNAMODB_READY=true
+        break
+    fi
+    RETRY_COUNT=\$((RETRY_COUNT + 1))
+    sleep 1
+done
+
+if [ \"\$DYNAMODB_READY\" = true ]; then
+    echo -e \"\${GREEN}✓ DynamoDB Local is ready\${NC}\"
+else
+    echo -e \"\${YELLOW}⚠ DynamoDB Local may not be fully ready, but continuing...\${NC}\"
+    sleep 2  # Give it a bit more time
+fi
+
+# Always set up DynamoDB table (DynamoDB Local is in-memory, table is lost on container restart)
+echo -e \"\${YELLOW}Setting up DynamoDB table...\${NC}\"
+cd \"\$PROJECT_ROOT\"
+if [ -f \"scripts/setup-table.js\" ]; then
+    if command -v node > /dev/null 2>&1; then
+        if node scripts/setup-table.js; then
+            echo -e \"\${GREEN}✓ DynamoDB table setup complete\${NC}\"
+        else
+            echo -e \"\${YELLOW}⚠ Table setup had issues (table may already exist)\${NC}\"
+            echo -e \"\${YELLOW}  Continuing anyway...\${NC}\"
+        fi
+    else
+        echo -e \"\${YELLOW}⚠ Node.js not found, skipping table setup\${NC}\"
+        echo -e \"\${YELLOW}  Please run 'sams-util db-setup' manually after installing Node.js\${NC}\"
+    fi
+else
+    echo -e \"\${YELLOW}⚠ setup-table.js not found, skipping table setup\${NC}\"
+    echo -e \"\${YELLOW}  Please run 'sams-util db-setup' manually if needed\${NC}\"
+fi
+
+# Detect runtime and copy dependencies accordingly
+detect_runtime() {
+    if [ -f \"\$PROJECT_ROOT/sam/template.yaml\" ]; then
+        grep -i \"Runtime:\" \"\$PROJECT_ROOT/sam/template.yaml\" | head -1 | sed 's/.*Runtime: *//' | sed 's/[^a-z0-9].*//' | tr '[:upper:]' '[:lower:]'
+    elif [ -f \"\$PROJECT_ROOT/sam/template.yml\" ]; then
+        grep -i \"Runtime:\" \"\$PROJECT_ROOT/sam/template.yml\" | head -1 | sed 's/.*Runtime: *//' | sed 's/[^a-z0-9].*//' | tr '[:upper:]' '[:lower:]'
+    fi
+}
+
+PROJECT_RUNTIME=\$(detect_runtime)
+
+# Copy dependencies to src/ based on runtime
+if [ ! -d \"\$PROJECT_ROOT/src/node_modules\" ]; then
+    case \"\$PROJECT_RUNTIME\" in
+        nodejs*)
+            if [ -d \"\$PROJECT_ROOT/node_modules\" ]; then
+                echo -e \"\${YELLOW}Copying node_modules to src/ for Lambda dependencies...\${NC}\"
+                cp -r \"\$PROJECT_ROOT/node_modules\" \"\$PROJECT_ROOT/src/\" 2>/dev/null || {
+                    echo -e \"\${RED}Warning: Failed to copy node_modules. Lambda may not have dependencies.\${NC}\"
+                    echo -e \"\${YELLOW}Please run: cp -r node_modules src/\${NC}\"
+                }
+            else
+                echo -e \"\${RED}Error: node_modules not found in project root!\${NC}\"
+                echo -e \"\${YELLOW}Please run: npm install\${NC}\"
+                echo -e \"\${YELLOW}Or run: sams-util verify (to check all prerequisites)\${NC}\"
+                exit 1
+            fi
+            ;;
+        python*)
+            # Python dependencies handled via requirements.txt (no node_modules needed)
+            if [ ! -f \"\$PROJECT_ROOT/requirements.txt\" ]; then
+                echo -e \"\${YELLOW}Warning: requirements.txt not found. Python dependencies may be missing.\${NC}\"
+            fi
+            ;;
+        java*)
+            # Java dependencies handled via Maven/Gradle (no node_modules needed)
+            ;;
+        *)
+            # Unknown runtime, try node_modules as fallback
+            if [ -d \"\$PROJECT_ROOT/node_modules\" ]; then
+                echo -e \"\${YELLOW}Copying node_modules to src/ for Lambda dependencies...\${NC}\"
+                cp -r \"\$PROJECT_ROOT/node_modules\" \"\$PROJECT_ROOT/src/\" 2>/dev/null || true
+            fi
+            ;;
+    esac
+fi
+
+# Set DOCKER_HOST for SAM CLI (required on macOS with Docker Desktop)
+if [ -z \"\$DOCKER_HOST\" ]; then
+    # Check for Docker Desktop socket (macOS)
+    if [ -S \"\$HOME/.docker/run/docker.sock\" ]; then
+        export DOCKER_HOST=\"unix://\$HOME/.docker/run/docker.sock\"
+    elif [ -S \"/var/run/docker.sock\" ]; then
+        export DOCKER_HOST=\"unix:///var/run/docker.sock\"
+    fi
+fi
+
+# Verify Docker is accessible
+if ! docker ps > /dev/null 2>&1; then
+    echo -e \"\${RED}Error: Docker is running but cannot access containers.\${NC}\"
+    echo -e \"\${YELLOW}Please check Docker Desktop is fully started and try again.\${NC}\"
+    exit 1
+fi
+
+# Check SAM port availability before starting
+echo -e \"\${YELLOW}Checking SAM port availability...\${NC}\"
+SAM_PORT_IN_USE=false
+if lsof -ti:\${SAM_PORT} > /dev/null 2>&1; then
+    SAM_PORT_PID=\$(lsof -ti:\${SAM_PORT} | head -1)
+    SAM_PORT_USER=\$(ps -p \$SAM_PORT_PID -o comm= 2>/dev/null || echo \"unknown\")
+    
+    # Check if it's our SAM Local API process
+    if ps aux | grep -q \"[s]am local start-api\"; then
+        # Check if it's actually using this port
+        if lsof -ti:\${SAM_PORT} | grep -q \"\$(pgrep -f 'sam local start-api' | head -1)\"; then
+            echo -e \"\${GREEN}✓ Port \${SAM_PORT}: SAM Local API is already running\${NC}\"
+            echo -e \"\${YELLOW}If you want to restart, use: sams-util restart\${NC}\"
+            echo -e \"\${YELLOW}Or stop it first: sams-util stop\${NC}\"
+            exit 0
+        fi
+    fi
+    
+    # Port is in use by something else
+    echo -e \"\${RED}Error: Port \${SAM_PORT} is already in use by \$SAM_PORT_USER (PID: \$SAM_PORT_PID)\${NC}\"
+    echo -e \"\${YELLOW}Please free the port or change it in config.yaml\${NC}\"
+    echo -e \"\${YELLOW}To find what's using the port: lsof -i:\${SAM_PORT}\${NC}\"
+    echo -e \"\${YELLOW}To kill the process: kill \$SAM_PORT_PID\${NC}\"
+    echo -e \"\${YELLOW}Or use a different port in config/config.yaml: sam.port\${NC}\"
+    exit 1
+else
+    echo -e \"\${GREEN}✓ Port \${SAM_PORT}: Available for SAM Local API\${NC}\"
+fi
+
+# Start SAM Local API
+echo -e \"\${YELLOW}Starting SAM Local API on port \${SAM_PORT}...\${NC}\"
+cd \"\$PROJECT_ROOT\"
+
+TEMPLATE_FILE=\"\"
+if [ -f \"sam/template.yaml\" ]; then
+    TEMPLATE_FILE=\"sam/template.yaml\"
+elif [ -f \"sam/template.yml\" ]; then
+    TEMPLATE_FILE=\"sam/template.yml\"
+else
+    echo -e \"\${RED}Error: SAM template not found!\${NC}\"
+    exit 1
+fi
+
+SAM_ARGS=\"--port \${SAM_PORT} --warm-containers \${WARM_CONTAINERS}\"
+if [ -n \"\$DOCKER_NETWORK\" ] && [ \"\$DOCKER_NETWORK\" != \"\" ]; then
+    SAM_ARGS=\"\$SAM_ARGS --docker-network \${DOCKER_NETWORK}\"
+fi
+
+sam local start-api --template \"\$TEMPLATE_FILE\" \$SAM_ARGS
+" \
+        "scripts/start.sh"
+    
+    # scripts/shutdown.sh - Stop DynamoDB Local and SAM Local API
+    create_file_if_not_exists "$project_dir/scripts/shutdown.sh" \
+        "#!/bin/bash
+
+set -e
+
+# Get the directory where this script is located
+SCRIPT_DIR=\"\$(cd \"\$(dirname \"\${BASH_SOURCE[0]}\")\" && pwd)\"
+PROJECT_ROOT=\"\$(cd \"\$SCRIPT_DIR/..\" && pwd)\"
+
+# Colors for output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+CONFIG_FILE=\"\${1:-\$PROJECT_ROOT/config/config.yaml}\"
+
+if [ ! -f \"\$CONFIG_FILE\" ]; then
+    echo -e \"\${RED}Error: Config file '\$CONFIG_FILE' not found!\${NC}\"
+    exit 1
+fi
+
+echo -e \"\${YELLOW}Shutting down SAM Local Environment...\${NC}\"
+
+# Function to read YAML config
+read_yaml() {
+    local section=\"\$1\"
+    local key=\"\$2\"
+    awk \"/^\${section}:/{flag=1; next} /^[a-z_]+:/{flag=0} flag && /^  \${key}:/{print}\" \"\$CONFIG_FILE\" | \\
+        sed 's/^  [^:]*: *//' | \\
+        sed 's/#.*$//' | \\
+        sed 's/^[[:space:]]*//' | \\
+        sed 's/[[:space:]]*$//' | \\
+        sed 's/^\"\\(.*\\)\"\$/\1/' | \\
+        sed \"s/^'\\\\(.*\\\\)'\\\$/\\\\1/\" | \\
+        xargs
+}
+
+# Read config
+CONTAINER_NAME=\$(read_yaml dynamodb_local container_name)
+SAM_PORT=\$(read_yaml sam port)
+
+# Stop SAM Local API (if running)
+if lsof -ti:\${SAM_PORT} > /dev/null 2>&1; then
+    echo -e \"\${YELLOW}Stopping SAM Local API on port \${SAM_PORT}...\${NC}\"
+    lsof -ti:\${SAM_PORT} | xargs kill -9 2>/dev/null || true
+    echo -e \"\${GREEN}✓ SAM Local API stopped\${NC}\"
+else
+    echo -e \"\${YELLOW}SAM Local API not running\${NC}\"
+fi
+
+# Stop and remove DynamoDB Local container
+if [ -f \"\$PROJECT_ROOT/config/docker-compose.yml\" ]; then
+    cd \"\$PROJECT_ROOT/config\"
+    if docker ps -a --format '{{.Names}}' | grep -q \"^\${CONTAINER_NAME}\$\"; then
+        echo -e \"\${YELLOW}Stopping DynamoDB Local...\${NC}\"
+        docker-compose down
+        echo -e \"\${GREEN}✓ DynamoDB Local stopped\${NC}\"
+    else
+        echo -e \"\${YELLOW}DynamoDB Local container not found\${NC}\"
+    fi
+    cd \"\$PROJECT_ROOT\"
+fi
+
+echo -e \"\${GREEN}✓ Shutdown complete\${NC}\"
+" \
+        "scripts/shutdown.sh"
+    
+    # scripts/verify-setup.sh - Verify prerequisites (full version with npm install and port checks)
+    # Try to find the source verify-setup.sh file from the aws-sam-exp project
+    # First, try relative to this script (when in aws-sam-exp project)
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    VERIFY_SOURCE="$SCRIPT_DIR/verify-setup.sh"
+    
+    # If not found, try common locations
+    if [ ! -f "$VERIFY_SOURCE" ]; then
+        # Try in the aws-sam-exp project directory (common location)
+        SAM_UTIL_DIR="$(dirname "$(which sams-util 2>/dev/null)" 2>/dev/null)"
+        for possible_dir in \
+            "$HOME/Documents/Learning-work/aws-sam-exp/scripts/verify-setup.sh" \
+            "$HOME/aws-sam-exp/scripts/verify-setup.sh" \
+            "/opt/aws-sam-exp/scripts/verify-setup.sh" \
+            "$SAM_UTIL_DIR/../scripts/verify-setup.sh"; do
+            if [ -f "$possible_dir" ]; then
+                VERIFY_SOURCE="$possible_dir"
+                break
+            fi
+        done
+    fi
+    
+    if [ -f "$VERIFY_SOURCE" ]; then
+        # Copy the existing verify-setup.sh
+        cp "$VERIFY_SOURCE" "$project_dir/scripts/verify-setup.sh"
+        chmod +x "$project_dir/scripts/verify-setup.sh"
+        echo -e "${GREEN}✓ Created scripts/verify-setup.sh${NC}"
+    else
+        # Fallback: create a basic version if source file doesn't exist
+        echo -e "${YELLOW}⚠ verify-setup.sh source not found, creating basic version${NC}"
+        cat > "$project_dir/scripts/verify-setup.sh" << 'BASIC_VERIFY_EOF'
+#!/bin/bash
+set -e
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+echo -e "${GREEN}Verifying AWS SAM Local Setup...${NC}"
+echo ""
+ERRORS=0
+if command -v sam > /dev/null 2>&1; then
+    echo -e "${GREEN}✓ SAM CLI installed${NC}"
+else
+    echo -e "${RED}✗ SAM CLI not found!${NC}"
+    ERRORS=$((ERRORS + 1))
+fi
+if command -v docker > /dev/null 2>&1 && docker info > /dev/null 2>&1; then
+    echo -e "${GREEN}✓ Docker is running${NC}"
+else
+    echo -e "${RED}✗ Docker not running!${NC}"
+    ERRORS=$((ERRORS + 1))
+fi
+if [ $ERRORS -eq 0 ]; then
+    echo -e "${GREEN}✓ All critical checks passed!${NC}"
+    exit 0
+else
+    echo -e "${RED}✗ Found $ERRORS critical issue(s)!${NC}"
+    exit 1
+fi
+BASIC_VERIFY_EOF
+        chmod +x "$project_dir/scripts/verify-setup.sh"
+        echo -e "${GREEN}✓ Created basic scripts/verify-setup.sh${NC}"
+    fi
+    chmod +x "$project_dir/scripts/verify-setup.sh"
+    echo -e "${GREEN}✓ Created scripts/verify-setup.sh${NC}"
+    
+    # Make scripts executable
+    chmod +x "$project_dir/scripts/start.sh" 2>/dev/null || true
+    chmod +x "$project_dir/scripts/shutdown.sh" 2>/dev/null || true
+    chmod +x "$project_dir/scripts/verify-setup.sh" 2>/dev/null || true
+    
+    # 9. scripts/setup-table.js
+    create_file_if_not_exists "$project_dir/scripts/setup-table.js" \
+        "const AWS = require('aws-sdk');
+
+const dynamodb = new AWS.DynamoDB({
+  endpoint: 'http://localhost:8000',
+  region: 'us-east-1',
+  accessKeyId: 'fake',
+  secretAccessKey: 'fake'
+});
+
+const tableName = 'TestTable';
+
+async function createTable() {
+  try {
+    // Check if table exists
+    try {
+      await dynamodb.describeTable({ TableName: tableName }).promise();
+      console.log(\`✓ Table '\${tableName}' already exists\`);
+      return;
+    } catch (err) {
+      if (err.code !== 'ResourceNotFoundException') {
+        throw err;
+      }
+    }
+
+    // Create table
+    const params = {
+      TableName: tableName,
+      AttributeDefinitions: [
+        {
+          AttributeName: 'id',
+          AttributeType: 'S'
+        }
+      ],
+      KeySchema: [
+        {
+          AttributeName: 'id',
+          KeyType: 'HASH'
+        }
+      ],
+      BillingMode: 'PAY_PER_REQUEST'
+    };
+
+    await dynamodb.createTable(params).promise();
+    console.log(\`✓ Table '\${tableName}' created successfully\`);
+    
+    // Wait for table to be active
+    console.log('Waiting for table to be active...');
+    await dynamodb.waitFor('tableExists', { TableName: tableName }).promise();
+    console.log('✓ Table is now active');
+    
+  } catch (error) {
+    console.error('Error:', error.message);
+    process.exit(1);
+  }
+}
+
+createTable();
+" \
+        "scripts/setup-table.js"
+    
+    # 9. .gitignore
+    create_file_if_not_exists "$project_dir/.gitignore" \
+        "# AWS credentials and sensitive config files
+config/config.local.yaml
+config/*.local.yaml
+config/config.prod.yaml
+config/*.prod.yaml
+.env
+.aws/
+
+# Node modules
+node_modules/
+package-lock.json
+
+# Python
+__pycache__/
+*.py[cod]
+*\$py.class
+*.so
+.Python
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# SAM build artifacts
+.aws-sam/
+samconfig.toml
+
+# Logs
+*.log
+
+# Keep example configs
+!config/config.yaml.example
+" \
+        ".gitignore"
+    
+    # 10. README.md (basic)
+    if [ ! -f "$project_dir/README.md" ]; then
+        echo -e "${YELLOW}⚠ README.md already exists or will be created separately${NC}"
+    fi
+    
+    echo ""
+    echo -e "${GREEN}=== Setup Complete ===${NC}"
+    echo ""
+    
+    # Try to set up DynamoDB table if DynamoDB Local is running
+    echo -e "${YELLOW}Checking if DynamoDB Local is running for table setup...${NC}"
+    if command -v docker > /dev/null 2>&1 && docker ps --format '{{.Names}}' | grep -q "dynamodb-local"; then
+        echo -e "${GREEN}✓ DynamoDB Local is running${NC}"
+        echo -e "${YELLOW}Setting up DynamoDB table...${NC}"
+        cd "$project_dir"
+        
+        # Wait a moment for DynamoDB to be fully ready
+        sleep 2
+        
+        # Check if setup-table.js exists and node is available (for Node.js projects)
+        if [ -f "scripts/setup-table.js" ]; then
+            if command -v node > /dev/null 2>&1; then
+                if node scripts/setup-table.js 2>/dev/null; then
+                    echo -e "${GREEN}✓ DynamoDB table created successfully${NC}"
+                else
+                    echo -e "${YELLOW}⚠ Table setup had issues (table may already exist)${NC}"
+                    echo -e "${YELLOW}  You can run 'sams-util db-setup' manually if needed${NC}"
+                fi
+            else
+                echo -e "${YELLOW}⚠ Node.js not found, skipping table setup${NC}"
+                echo -e "${YELLOW}  Install Node.js and run 'sams-util db-setup' manually${NC}"
+            fi
+        else
+            echo -e "${YELLOW}⚠ setup-table.js not found, skipping table setup${NC}"
+        fi
+    else
+        echo -e "${YELLOW}⚠ DynamoDB Local is not running${NC}"
+        echo -e "${YELLOW}  Table will be created automatically when you run 'sams-util start'${NC}"
+    fi
+    
+    echo ""
+    echo -e "${YELLOW}Next steps:${NC}"
+    
+    case "$runtime" in
+        nodejs)
+            echo "  1. Install dependencies:"
+            echo "     cd $project_dir && npm install"
+            ;;
+        python)
+            echo "  1. Install dependencies:"
+            echo "     cd $project_dir && pip install -r requirements.txt"
+            echo "     # Or use virtual environment:"
+            echo "     python -m venv venv"
+            echo "     source venv/bin/activate  # On Windows: venv\\Scripts\\activate"
+            echo "     pip install -r requirements.txt"
+            ;;
+        java)
+            echo "  1. Build the project:"
+            echo "     cd $project_dir && mvn clean package"
+            echo "     # Or use Gradle if you prefer (update build.gradle)"
+            ;;
+    esac
+    
+    echo ""
+    echo "  2. Scripts are already executable (created automatically)"
+    echo ""
+    echo "  3. Verify setup:"
+    echo "     sams-util verify"
+    echo ""
+    echo "  4. Start the environment (table will be created automatically if not exists):"
+    echo "     sams-util start"
+    echo ""
+    echo -e "${BLUE}For detailed documentation, see README.md${NC}"
+}
+
+main "$@"
+

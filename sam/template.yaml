@@ -1,0 +1,59 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SAM template for DynamoDB Local testing
+
+Globals:
+  Function:
+    Timeout: 10
+    MemorySize: 128
+
+Resources:
+  HelloWorldFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../src
+      Handler: app.lambdaHandler
+      Runtime: nodejs20.x
+      Architectures:
+      - x86_64
+      Environment:
+        Variables:
+          # DYNAMODB_ENDPOINT: Only set for local development (DynamoDB Local)
+          # For production/AWS deployment, leave this commented out to use AWS DynamoDB
+          # This value is dynamically updated by start.sh based on config.yaml for local dev
+          # Default: http://host.docker.internal:8000 (works with Docker Desktop)
+          # Can be overridden at runtime via environment variable
+          DYNAMODB_ENDPOINT: "http://host.docker.internal:8000"
+          DYNAMODB_TABLE_NAME: "TestTable"
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName: !Ref TestTable
+      Events:
+        HelloWorld:
+          Type: Api
+          Properties:
+            Path: /hello
+            Method: get
+
+  TestTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: TestTable
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+      - AttributeName: id
+        AttributeType: S
+      KeySchema:
+      - AttributeName: id
+        KeyType: HASH
+
+Outputs:
+  HelloWorldApi:
+    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+  HelloWorldFunction:
+    Description: "Hello World Lambda Function ARN"
+    Value: !GetAtt HelloWorldFunction.Arn
+  HelloWorldFunctionIamRole:
+    Description: "Implicit IAM Role created for Hello World function"
+    Value: !GetAtt HelloWorldFunctionRole.Arn

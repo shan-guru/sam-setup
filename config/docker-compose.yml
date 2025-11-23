@@ -1,0 +1,11 @@
+services:
+  dynamodb-local:
+    image: amazon/dynamodb-local
+    container_name: dynamodb-local
+    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb"]
+    ports:
+      - "8000:8000"
+    # Note: network_mode: host doesn't work properly on macOS Docker Desktop
+    # Using bridge network with port mapping instead
+    # Lambda containers can connect via host.docker.internal:8000
+

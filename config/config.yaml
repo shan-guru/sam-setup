@@ -1,0 +1,29 @@
+aws:
+  # For local SAM development with DynamoDB Local, use dummy values ("test"/"test")
+  # These are only used by SAM CLI, not for actual AWS API calls
+  # For real AWS operations, AWS SDK will automatically use AWS CLI credentials
+  # Configure AWS CLI with: aws configure
+  # Priority: Environment variables > AWS CLI credentials > config.yaml
+  access_key_id: "test"
+  secret_access_key: "test"
+  region: "us-east-1" # AWS region (e.g., us-east-1, us-west-2)
+
+dynamodb_local:
+  # DynamoDB Local Docker container configuration
+  image: "amazon/dynamodb-local" # Docker image name
+  port: 8000 # Host port mapped to container port 8000 (change if port is in use)
+  container_name: "dynamodb-local" # Docker container name (used for container management)
+  # Host/IP address for Lambda containers to connect to DynamoDB Local
+  # Auto-detected during setup, but you can manually change it here
+  # Options: "host.docker.internal" (recommended for Docker Desktop), "192.168.50.13" (your host IP), "localhost"
+  # To find your IP: ifconfig | grep "inet " | grep -v "127.0.0.1"
+  host: "host.docker.internal" # Use host.docker.internal for Docker Desktop (works on macOS/Windows)
+  # Alternative: Use your host IP (e.g., "192.168.50.13") if host.docker.internal doesn't work
+
+sam:
+  # AWS SAM Local API configuration
+  port: 3000 # Port where SAM Local API will be accessible (default: 3000)
+  warm_containers: "EAGER" # Keep containers warm: "EAGER" (faster) or "LAZY" (on-demand)
+  docker_network: "" # Network mode: "" for bridge network (recommended for macOS/Windows), "host" for Linux
+  # Note: On macOS/Windows Docker Desktop, host network mode doesn't work properly
+  # Use bridge network (empty string) and connect via host.docker.internal

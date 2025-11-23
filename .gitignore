@@ -1,0 +1,46 @@
+# AWS credentials and sensitive config files
+config/config.local.yaml
+config/*.local.yaml
+config/config.prod.yaml
+config/*.prod.yaml
+.env
+.aws/
+AWS-AC/
+*.csv
+*.pem
+*.key
+
+# Node modules
+node_modules/
+package-lock.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# SAM build artifacts
+.aws-sam/
+samconfig.toml
+
+# Logs
+*.log
+
+# Keep example configs
+!config/config.yaml.example
+

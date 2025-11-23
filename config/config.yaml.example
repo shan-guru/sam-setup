@@ -1,0 +1,21 @@
+# Example configuration file
+# Copy this to config.yaml and update with your values
+# For local development with DynamoDB Local, use dummy credentials
+
+aws:
+  # For local SAM development with DynamoDB Local, use dummy values
+  # For real AWS operations, AWS SDK will use AWS CLI credentials automatically
+  access_key_id: "test"
+  secret_access_key: "test"
+  region: "us-east-1"
+
+dynamodb_local:
+  image: "amazon/dynamodb-local"
+  port: 8000
+  container_name: "dynamodb-local"
+
+sam:
+  port: 3000
+  warm_containers: "EAGER"
+  docker_network: "host" # Optional, set to "" to disable
+
