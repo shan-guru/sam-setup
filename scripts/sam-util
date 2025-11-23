@@ -52,10 +52,10 @@ show_help() {
         return
     fi
     
-    echo -e "${BLUE}sams-util v${VERSION}${NC} - Global SAM Project Utility"
+    echo -e "${BLUE}sam-util v${VERSION}${NC} - Global SAM Project Utility"
     echo ""
     echo -e "${GREEN}Usage:${NC}"
-    echo "    sams-util <command> [options]"
+    echo "    sam-util <command> [options]"
     echo ""
     echo -e "${GREEN}Commands:${NC}"
     echo "    start           Start DynamoDB Local and SAM Local API"
@@ -70,35 +70,35 @@ show_help() {
     echo -e "${GREEN}Options:${NC}"
     echo "    --project DIR   Specify project directory (default: auto-detect)"
     echo "    --config FILE   Specify config file"
-    echo "    --profile NAME  Use specific AWS profile (see: sams-util help profile)"
+    echo "    --profile NAME  Use specific AWS profile (see: sam-util help profile)"
     echo "    --help          Show help for specific command"
     echo ""
     echo -e "${GREEN}Examples:${NC}"
-    echo "    sams-util start                 # Start from any directory"
-    echo "    sams-util stop                  # Stop services"
-    echo "    sams-util restart                # Restart everything"
-    echo "    sams-util verify                 # Verify setup"
-    echo "    sams-util db-setup               # Set up DynamoDB table"
-    echo "    sams-util db-setup table.json    # Set up with specific file"
-    echo "    sams-util deploy                 # Deploy to AWS (requires AWS credentials)"
-    echo "    sams-util --profile prod deploy  # Deploy with specific AWS profile"
-    echo "    sams-util status                 # Check status"
-    echo "    sams-util setup                  # Initialize Node.js project (default)"
-    echo "    sams-util setup --runtime python # Initialize Python project"
-    echo "    sams-util setup --runtime java   # Initialize Java project"
+    echo "    sam-util start                 # Start from any directory"
+    echo "    sam-util stop                  # Stop services"
+    echo "    sam-util restart                # Restart everything"
+    echo "    sam-util verify                 # Verify setup"
+    echo "    sam-util db-setup               # Set up DynamoDB table"
+    echo "    sam-util db-setup table.json    # Set up with specific file"
+    echo "    sam-util deploy                 # Deploy to AWS (requires AWS credentials)"
+    echo "    sam-util --profile prod deploy  # Deploy with specific AWS profile"
+    echo "    sam-util status                 # Check status"
+    echo "    sam-util setup                  # Initialize Node.js project (default)"
+    echo "    sam-util setup --runtime python # Initialize Python project"
+    echo "    sam-util setup --runtime java   # Initialize Java project"
     echo ""
     echo -e "${GREEN}Getting Help:${NC}"
-    echo "    sams-util help                  # Show this help"
-    echo "    sams-util help deploy           # Show detailed help for deploy"
-    echo "    sams-util help profile          # Show help for --profile option"
-    echo "    sams-util deploy --help         # Same as: sams-util help deploy"
+    echo "    sam-util help                  # Show this help"
+    echo "    sam-util help deploy           # Show detailed help for deploy"
+    echo "    sam-util help profile          # Show help for --profile option"
+    echo "    sam-util deploy --help         # Same as: sam-util help deploy"
     echo ""
     echo -e "${GREEN}Project Detection:${NC}"
     echo "    The utility automatically finds SAM projects by looking for:"
     echo "    - sam/template.yaml"
     echo "    - config/config.yaml"
     echo ""
-    echo "    Or specify with: sams-util --project /path/to/project <command>"
+    echo "    Or specify with: sam-util --project /path/to/project <command>"
 }
 
 # Show command-specific help
@@ -113,8 +113,8 @@ show_command_help() {
             echo "    Deploy your SAM application to AWS using CloudFormation."
             echo ""
             echo -e "${GREEN}Usage:${NC}"
-            echo "    sams-util deploy [options]"
-            echo "    sams-util --profile <profile> deploy"
+            echo "    sam-util deploy [options]"
+            echo "    sam-util --profile <profile> deploy"
             echo ""
             echo -e "${GREEN}Prerequisites:${NC}"
             echo "    1. AWS CLI configured with valid credentials"
@@ -129,7 +129,7 @@ show_command_help() {
             echo ""
             echo -e "${GREEN}Options:${NC}"
             echo "    --profile NAME    Use specific AWS profile"
-            echo "                     Example: sams-util --profile prod deploy"
+            echo "                     Example: sam-util --profile prod deploy"
             echo ""
             echo -e "${GREEN}What it does:${NC}"
             echo "    1. Verifies AWS credentials are configured"
@@ -140,10 +140,10 @@ show_command_help() {
             echo ""
             echo -e "${GREEN}Examples:${NC}"
             echo "    # Deploy with default AWS profile"
-            echo "    sams-util deploy"
+            echo "    sam-util deploy"
             echo ""
             echo "    # Deploy with specific profile"
-            echo "    sams-util --profile production deploy"
+            echo "    sam-util --profile production deploy"
             echo ""
             echo -e "${GREEN}After Deployment:${NC}"
             echo "    Get API endpoint:"
@@ -158,7 +158,7 @@ show_command_help() {
             echo "    Use a specific AWS CLI profile for commands that interact with AWS."
             echo ""
             echo -e "${GREEN}Usage:${NC}"
-            echo "    sams-util --profile <profile-name> <command>"
+            echo "    sam-util --profile <profile-name> <command>"
             echo ""
             echo -e "${GREEN}Setting up AWS Profiles:${NC}"
             echo "    1. Configure a named profile:"
@@ -177,13 +177,13 @@ show_command_help() {
             echo ""
             echo -e "${GREEN}Examples:${NC}"
             echo "    # Deploy to production account"
-            echo "    sams-util --profile prod deploy"
+            echo "    sam-util --profile prod deploy"
             echo ""
             echo "    # Deploy to development account"
-            echo "    sams-util --profile dev deploy"
+            echo "    sam-util --profile dev deploy"
             echo ""
             echo "    # Check status (doesn't need profile)"
-            echo "    sams-util status"
+            echo "    sam-util status"
             echo ""
             echo -e "${GREEN}Commands that use --profile:${NC}"
             echo "    - deploy (requires AWS credentials)"
@@ -203,7 +203,7 @@ show_command_help() {
                     echo "    Start DynamoDB Local and SAM Local API for local development."
                     echo ""
                     echo -e "${GREEN}Usage:${NC}"
-                    echo "    sams-util start"
+                    echo "    sam-util start"
                     echo ""
                     echo -e "${GREEN}What it does:${NC}"
                     echo "    1. Starts DynamoDB Local container"
@@ -215,21 +215,21 @@ show_command_help() {
                     echo "    Stop all local services and clean up containers."
                     echo ""
                     echo -e "${GREEN}Usage:${NC}"
-                    echo "    sams-util stop"
+                    echo "    sam-util stop"
                     ;;
                 restart)
                     echo -e "${GREEN}Description:${NC}"
                     echo "    Force restart: stop all services and start fresh."
                     echo ""
                     echo -e "${GREEN}Usage:${NC}"
-                    echo "    sams-util restart"
+                    echo "    sam-util restart"
                     ;;
                 verify)
                     echo -e "${GREEN}Description:${NC}"
                     echo "    Verify setup and prerequisites."
                     echo ""
                     echo -e "${GREEN}Usage:${NC}"
-                    echo "    sams-util verify"
+                    echo "    sam-util verify"
                     echo ""
                     echo -e "${GREEN}Checks:${NC}"
                     echo "    - SAM CLI installation"
@@ -242,18 +242,18 @@ show_command_help() {
                     echo "    Set up DynamoDB table in DynamoDB Local."
                     echo ""
                     echo -e "${GREEN}Usage:${NC}"
-                    echo "    sams-util db-setup [file]"
+                    echo "    sam-util db-setup [file]"
                     echo ""
                     echo -e "${GREEN}Examples:${NC}"
-                    echo "    sams-util db-setup"
-                    echo "    sams-util db-setup scripts/custom-setup.js"
+                    echo "    sam-util db-setup"
+                    echo "    sam-util db-setup scripts/custom-setup.js"
                     ;;
                 status)
                     echo -e "${GREEN}Description:${NC}"
                     echo "    Show status of running services."
                     echo ""
                     echo -e "${GREEN}Usage:${NC}"
-                    echo "    sams-util status"
+                    echo "    sam-util status"
                     echo ""
                     echo -e "${GREEN}Shows:${NC}"
                     echo "    - DynamoDB Local container status"
@@ -264,7 +264,7 @@ show_command_help() {
                     echo "    Initialize project with all required files."
                     echo ""
                     echo -e "${GREEN}Usage:${NC}"
-                    echo "    sams-util setup [--runtime RUNTIME] [--force]"
+                    echo "    sam-util setup [--runtime RUNTIME] [--force]"
                     echo ""
                     echo -e "${GREEN}What it creates:${NC}"
                     echo "    - config/docker-compose.yml"
@@ -281,10 +281,10 @@ show_command_help() {
                     echo "    --force              Overwrite existing files"
                     echo ""
                     echo -e "${GREEN}Examples:${NC}"
-                    echo "    sams-util setup                      # Create Node.js project (default)"
-                    echo "    sams-util setup --runtime python     # Create Python project"
-                    echo "    sams-util setup --runtime java       # Create Java project"
-                    echo "    sams-util setup --force               # Overwrite existing files"
+                    echo "    sam-util setup                      # Create Node.js project (default)"
+                    echo "    sam-util setup --runtime python     # Create Python project"
+                    echo "    sam-util setup --runtime java       # Create Java project"
+                    echo "    sam-util setup --force               # Overwrite existing files"
                     ;;
             esac
             ;;
@@ -294,7 +294,7 @@ show_command_help() {
             echo -e "${YELLOW}Available commands for help:${NC}"
             echo "    deploy, profile, start, stop, restart, verify, db-setup, status, setup"
             echo ""
-            echo "Use: sams-util help"
+            echo "Use: sam-util help"
             ;;
     esac
 }
@@ -532,7 +532,7 @@ main() {
                 echo "  # or"
                 echo "  aws configure --profile <profile-name>"
                 echo ""
-                echo -e "${YELLOW}Or use: sams-util --profile <profile> deploy${NC}"
+                echo -e "${YELLOW}Or use: sam-util --profile <profile> deploy${NC}"
                 exit 1
             fi
             
@@ -734,7 +734,7 @@ sam:
         
         # Create config.yaml with host.docker.internal
         cat > "$project_dir/config/config.yaml" <<EOF
-# Configuration file (auto-generated by sams-util setup)
+# Configuration file (auto-generated by sam-util setup)
 # For local development with DynamoDB Local, use dummy credentials
 # For real AWS operations, AWS SDK will use AWS CLI credentials automatically
 
@@ -893,7 +893,7 @@ exports.lambdaHandler = async (event) => {
     if (error.code === 'ResourceNotFoundException' || error.message.includes('Cannot do operations on a non-existent table')) {
       errorBody = { 
         message: 'Table does not exist',
-        error: 'TestTable not found in DynamoDB Local. Please run sams-util db-setup to create it.'
+        error: 'TestTable not found in DynamoDB Local. Please run sam-util db-setup to create it.'
       };
     } else if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND' || error.message.includes('connect')) {
       errorBody = { 
@@ -975,7 +975,7 @@ def lambda_handler(event, context):
         if error_code == 'ResourceNotFoundException' or 'non-existent table' in error_message:
             error_body = {
                 'message': 'Table does not exist',
-                'error': 'TestTable not found in DynamoDB Local. Please run sams-util db-setup to create it.'
+                'error': 'TestTable not found in DynamoDB Local. Please run sam-util db-setup to create it.'
             }
         else:
             error_body = {
@@ -1171,7 +1171,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     esac
     
     # 8. Essential shell scripts
-    # Note: These scripts are required for sams-util to work properly
+    # Note: These scripts are required for sam-util to work properly
     
     # scripts/start.sh - Start DynamoDB Local and SAM Local API
     create_file_if_not_exists "$project_dir/scripts/start.sh" \
@@ -1333,11 +1333,11 @@ if [ -f \"scripts/setup-table.js\" ]; then
         fi
     else
         echo -e \"\${YELLOW}⚠ Node.js not found, skipping table setup\${NC}\"
-        echo -e \"\${YELLOW}  Please run 'sams-util db-setup' manually after installing Node.js\${NC}\"
+        echo -e \"\${YELLOW}  Please run 'sam-util db-setup' manually after installing Node.js\${NC}\"
     fi
 else
     echo -e \"\${YELLOW}⚠ setup-table.js not found, skipping table setup\${NC}\"
-    echo -e \"\${YELLOW}  Please run 'sams-util db-setup' manually if needed\${NC}\"
+    echo -e \"\${YELLOW}  Please run 'sam-util db-setup' manually if needed\${NC}\"
 fi
 
 # Detect runtime and copy dependencies accordingly
@@ -1364,7 +1364,7 @@ if [ ! -d \"\$PROJECT_ROOT/src/node_modules\" ]; then
             else
                 echo -e \"\${RED}Error: node_modules not found in project root!\${NC}\"
                 echo -e \"\${YELLOW}Please run: npm install\${NC}\"
-                echo -e \"\${YELLOW}Or run: sams-util verify (to check all prerequisites)\${NC}\"
+                echo -e \"\${YELLOW}Or run: sam-util verify (to check all prerequisites)\${NC}\"
                 exit 1
             fi
             ;;
@@ -1416,8 +1416,8 @@ if lsof -ti:\${SAM_PORT} > /dev/null 2>&1; then
         # Check if it's actually using this port
         if lsof -ti:\${SAM_PORT} | grep -q \"\$(pgrep -f 'sam local start-api' | head -1)\"; then
             echo -e \"\${GREEN}✓ Port \${SAM_PORT}: SAM Local API is already running\${NC}\"
-            echo -e \"\${YELLOW}If you want to restart, use: sams-util restart\${NC}\"
-            echo -e \"\${YELLOW}Or stop it first: sams-util stop\${NC}\"
+            echo -e \"\${YELLOW}If you want to restart, use: sam-util restart\${NC}\"
+            echo -e \"\${YELLOW}Or stop it first: sam-util stop\${NC}\"
             exit 0
         fi
     fi
@@ -1534,7 +1534,7 @@ echo -e \"\${GREEN}✓ Shutdown complete\${NC}\"
     # If not found, try common locations
     if [ ! -f "$VERIFY_SOURCE" ]; then
         # Try in the aws-sam-exp project directory (common location)
-        SAM_UTIL_DIR="$(dirname "$(which sams-util 2>/dev/null)" 2>/dev/null)"
+        SAM_UTIL_DIR="$(dirname "$(which sam-util 2>/dev/null)" 2>/dev/null)"
         for possible_dir in \
             "$HOME/Documents/Learning-work/aws-sam-exp/scripts/verify-setup.sh" \
             "$HOME/aws-sam-exp/scripts/verify-setup.sh" \
@@ -1799,7 +1799,7 @@ samconfig.toml
         ./scripts/start.sh
     else
         echo -e "${RED}✗ start.sh not found!${NC}"
-        echo -e "${YELLOW}  Please run 'sams-util start' manually${NC}"
+        echo -e "${YELLOW}  Please run 'sam-util start' manually${NC}"
         echo ""
         echo -e "${BLUE}For detailed documentation, see README.md${NC}"
     fi
