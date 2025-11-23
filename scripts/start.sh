@@ -49,9 +49,18 @@ while [[ $# -gt 0 ]]; do
             CONFIG_FILE="$2"
             shift 2
             ;;
+        -h|--help)
+            # Help already handled above, but include here for completeness
+            exit 0
+            ;;
         *)
-            if [ -z "$CONFIG_FILE" ] || [ "$CONFIG_FILE" = "config.yaml" ]; then
+            # Only treat as config file if it doesn't start with - and is a file
+            if [[ "$1" != -* ]] && [ -f "$1" ]; then
                 CONFIG_FILE="$1"
+            elif [[ "$1" == -* ]]; then
+                echo -e "${RED}Error: Unknown option: $1${NC}"
+                echo "Use --help for usage information"
+                exit 1
             fi
             shift
             ;;
