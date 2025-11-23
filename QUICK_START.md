@@ -4,29 +4,24 @@
 
 **Quick Setup (Recommended):**
 ```bash
-# 1. Initialize project (creates all required files)
-sams-util setup                    # Node.js (default)
+# 1. Initialize project (automatically verifies, installs dependencies, and starts services)
+sams-util setup                    # Node.js (default) - does everything automatically!
 # Or: sams-util setup --runtime python
 # Or: sams-util setup --runtime java
 
-# 2. Install dependencies (runtime-specific)
-# For Node.js:
-npm install
-# For Python:
-pip install -r requirements.txt
-# For Java:
-mvn clean package
+# That's it! The setup command automatically:
+# - Creates all project files
+# - Runs verification checks
+# - Installs dependencies (npm/pip/mvn)
+# - Starts DynamoDB Local and SAM Local API
+# - Creates DynamoDB table
 
-# 3. (Optional) Install global CLI utility
+# 2. (Optional) Install global CLI utility (if not already installed)
 ./scripts/install-sams-util.sh
 
-# 4. Verify setup
-sams-util verify
-
-# 5. Start the environment
-sams-util start
-
 # Note: All scripts are automatically created with executable permissions - no chmod needed!
+# Note: Dependencies are automatically installed - no npm install needed!
+# Note: Services are automatically started - no sams-util start needed!
 ```
 
 **Manual Setup:**
@@ -59,9 +54,11 @@ cp config/config.yaml.example config/config.yaml
 
 ```bash
 # Option 1: Using global CLI (from any directory)
-sams-util start
-sams-util stop
-sams-util status
+# Note: sams-util start automatically verifies and installs dependencies
+sams-util start      # Auto-verifies, installs deps, and starts services
+sams-util stop       # Stop all services
+sams-util restart    # Restart (auto-verifies and installs deps)
+sams-util status     # Check service status
 
 # Option 2: Using local scripts (from project root)
 ./scripts/start.sh
@@ -75,14 +72,16 @@ curl http://127.0.0.1:3000/hello
 
 ```bash
 # Using global CLI (recommended)
-sams-util restart          # Force restart
-sams-util verify            # Verify setup
-sams-util db-setup         # Set up DynamoDB table
+sams-util setup             # Initialize project, verify, install deps, and start (Node.js default)
+sams-util setup --runtime python  # Initialize Python project (full auto-setup)
+sams-util setup --runtime java    # Initialize Java project (full auto-setup)
+sams-util start             # Start services (auto-verifies and installs deps)
+sams-util restart           # Force restart (auto-verifies and installs deps)
+sams-util stop              # Stop all services
+sams-util verify            # Verify setup manually
+sams-util db-setup         # Set up DynamoDB table manually
 sams-util deploy            # Deploy to AWS
 sams-util status            # Check service status
-sams-util setup             # Initialize Node.js project (default)
-sams-util setup --runtime python  # Initialize Python project
-sams-util setup --runtime java    # Initialize Java project
 
 # Getting help
 sams-util help              # General help

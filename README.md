@@ -70,6 +70,11 @@ This project sets up AWS SAM Local with DynamoDB Local for local development and
 **Option 1: Quick Setup (Recommended for new projects)**
 ```bash
 # Initialize project with all required files (Node.js by default)
+# This command automatically:
+# 1. Creates all project files
+# 2. Runs verification checks
+# 3. Installs dependencies (npm/pip/mvn)
+# 4. Starts services (DynamoDB Local + SAM Local API)
 sams-util setup
 
 # Or specify runtime:
@@ -91,6 +96,7 @@ sams-util setup --runtime java      # Java
 # - .gitignore
 #
 # All scripts are automatically made executable - no chmod needed!
+# Dependencies are automatically installed and services are started!
 ```
 
 **Option 2: Manual Setup**
@@ -131,12 +137,20 @@ sams-util setup --runtime java      # Java
 4. **Start the environment:**
    ```bash
    # Option 1: Using global CLI (from any directory)
+   # Note: sams-util start automatically runs verification and installs dependencies
    sams-util start
    
    # Option 2: Using local scripts (from project root)
    # Note: If using sams-util setup, scripts are already executable
    ./scripts/start.sh
    ```
+   
+   > **Note:** `sams-util start` automatically:
+   > - Runs verification checks
+   > - Installs missing dependencies (npm/pip/mvn)
+   > - Starts DynamoDB Local
+   > - Creates DynamoDB table
+   > - Starts SAM Local API
 
 5. **Test the API:**
    ```bash
@@ -315,14 +329,14 @@ sams-util status
 
 | Command | Description |
 |---------|-------------|
-| `sams-util start` | Start DynamoDB Local and SAM Local API |
+| `sams-util start` | Start DynamoDB Local and SAM Local API (auto-verifies and installs dependencies) |
 | `sams-util stop` | Stop all services and clean up |
-| `sams-util restart` | Force restart (stop and start fresh) |
+| `sams-util restart` | Force restart (stop, verify, install dependencies, and start fresh) |
 | `sams-util verify` | Verify setup and prerequisites |
 | `sams-util db-setup [file]` | Set up DynamoDB table (optional file) |
 | `sams-util deploy` | Deploy SAM application to AWS |
 | `sams-util status` | Show status of running services |
-| `sams-util setup [--runtime RUNTIME] [--force]` | Initialize project with all required files (default: nodejs) |
+| `sams-util setup [--runtime RUNTIME] [--force]` | Initialize project, verify, install dependencies, and start services (default: nodejs) |
 | `sams-util help [command]` | Show help message or command-specific help |
 
 ### Usage Examples
@@ -361,10 +375,10 @@ sams-util --project /path/to/project start
 # Use specific config file
 sams-util --config config/config.prod.yaml start
 
-# Initialize new project
-sams-util setup                   # Create Node.js project (default)
-sams-util setup --runtime python # Create Python project
-sams-util setup --runtime java   # Create Java project
+# Initialize new project (automatically verifies, installs dependencies, and starts services)
+sams-util setup                   # Create Node.js project (default) - full auto-setup
+sams-util setup --runtime python # Create Python project - full auto-setup
+sams-util setup --runtime java   # Create Java project - full auto-setup
 sams-util setup --force          # Overwrite existing files
 
 # Get help
