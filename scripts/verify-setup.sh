@@ -328,7 +328,7 @@ if [ -f "config/config.yaml" ]; then
                 echo -e "${YELLOW}  SAM Local API may be running on a different port${NC}"
                 echo -e "${YELLOW}  This will conflict when starting SAM Local API${NC}"
                 echo -e "${YELLOW}  To free the port: kill $PORT_PID${NC}"
-                echo -e "${YELLOW}  Or stop SAM: sams-util stop${NC}"
+                echo -e "${YELLOW}  Or stop SAM: sam-util stop${NC}"
             else
                 echo -e "${RED}✗ Port $SAM_PORT: In use by $PORT_USER (PID: $PORT_PID)${NC}"
                 echo -e "${YELLOW}  This will prevent SAM Local API from starting${NC}"

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Installation script for sams-util global CLI
+# Installation script for sam-util global CLI
 
 set -e
 
@@ -16,14 +16,14 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Installation directory
 INSTALL_DIR="${HOME}/.local/bin"
-BINARY_NAME="sams-util"
+BINARY_NAME="sam-util"
 
-echo -e "${BLUE}Installing sams-util CLI...${NC}"
+echo -e "${BLUE}Installing sam-util CLI...${NC}"
 echo ""
 
-# Check if sams-util script exists
-if [ ! -f "$SCRIPT_DIR/sams-util" ]; then
-    echo -e "${RED}Error: sams-util script not found at $SCRIPT_DIR/sams-util${NC}"
+# Check if sam-util script exists
+if [ ! -f "$SCRIPT_DIR/sam-util" ]; then
+    echo -e "${RED}Error: sam-util script not found at $SCRIPT_DIR/sam-util${NC}"
     exit 1
 fi
 
@@ -31,10 +31,10 @@ fi
 mkdir -p "$INSTALL_DIR"
 
 # Copy script to install directory
-cp "$SCRIPT_DIR/sams-util" "$INSTALL_DIR/$BINARY_NAME"
+cp "$SCRIPT_DIR/sam-util" "$INSTALL_DIR/$BINARY_NAME"
 chmod +x "$INSTALL_DIR/$BINARY_NAME"
 
-echo -e "${GREEN}✓ Installed sams-util to ${GREEN}$INSTALL_DIR/$BINARY_NAME${NC}"
+echo -e "${GREEN}✓ Installed sam-util to ${GREEN}$INSTALL_DIR/$BINARY_NAME${NC}"
 
 # Check if install directory is in PATH
 if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
@@ -68,7 +68,7 @@ if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
         if [ -f "$CONFIG_FILE" ]; then
             if ! grep -q "$INSTALL_DIR" "$CONFIG_FILE"; then
                 echo "" >> "$CONFIG_FILE"
-                echo "# Added by sams-util installer" >> "$CONFIG_FILE"
+                echo "# Added by sam-util installer" >> "$CONFIG_FILE"
                 echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >> "$CONFIG_FILE"
                 echo -e "${GREEN}✓ Added to $CONFIG_FILE${NC}"
                 echo -e "${YELLOW}Run: source $CONFIG_FILE${NC}"
@@ -89,19 +89,19 @@ echo ""
 echo -e "${GREEN}Installation complete!${NC}"
 echo ""
 echo -e "${YELLOW}Usage:${NC}"
-echo "  sams-util --help              # Show help"
-echo "  sams-util setup               # Initialize project, verify, install deps, and start (Node.js)"
-echo "  sams-util setup --runtime python  # Initialize Python project (full auto-setup)"
-echo "  sams-util setup --runtime java    # Initialize Java project (full auto-setup)"
-echo "  sams-util start               # Start services (auto-verifies and installs deps)"
-echo "  sams-util restart             # Restart services (auto-verifies and installs deps)"
-echo "  sams-util stop                 # Stop services"
-echo "  sams-util verify               # Verify setup manually"
-echo "  sams-util deploy               # Deploy to AWS"
+echo "  sam-util --help              # Show help"
+echo "  sam-util setup               # Initialize project, verify, install deps, and start (Node.js)"
+echo "  sam-util setup --runtime python  # Initialize Python project (full auto-setup)"
+echo "  sam-util setup --runtime java    # Initialize Java project (full auto-setup)"
+echo "  sam-util start               # Start services (auto-verifies and installs deps)"
+echo "  sam-util restart             # Restart services (auto-verifies and installs deps)"
+echo "  sam-util stop                 # Stop services"
+echo "  sam-util verify               # Verify setup manually"
+echo "  sam-util deploy               # Deploy to AWS"
 echo ""
-echo -e "${YELLOW}For more commands, run:${NC} sams-util help"
+echo -e "${YELLOW}For more commands, run:${NC} sam-util help"
 echo ""
-echo -e "${BLUE}Note:${NC} sams-util setup and start commands automatically:"
+echo -e "${BLUE}Note:${NC} sam-util setup and start commands automatically:"
 echo "  - Run verification checks"
 echo "  - Install missing dependencies (npm/pip/mvn)"
 echo "  - Start DynamoDB Local and SAM Local API"

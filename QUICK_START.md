@@ -5,9 +5,9 @@
 **Quick Setup (Recommended):**
 ```bash
 # 1. Initialize project (automatically verifies, installs dependencies, and starts services)
-sams-util setup                    # Node.js (default) - does everything automatically!
-# Or: sams-util setup --runtime python
-# Or: sams-util setup --runtime java
+sam-util setup                    # Node.js (default) - does everything automatically!
+# Or: sam-util setup --runtime python
+# Or: sam-util setup --runtime java
 
 # That's it! The setup command automatically:
 # - Creates all project files
@@ -17,11 +17,11 @@ sams-util setup                    # Node.js (default) - does everything automat
 # - Creates DynamoDB table
 
 # 2. (Optional) Install global CLI utility (if not already installed)
-./scripts/install-sams-util.sh
+./scripts/install-sam-util.sh
 
 # Note: All scripts are automatically created with executable permissions - no chmod needed!
 # Note: Dependencies are automatically installed - no npm install needed!
-# Note: Services are automatically started - no sams-util start needed!
+# Note: Services are automatically started - no sam-util start needed!
 ```
 
 **Manual Setup:**
@@ -41,24 +41,24 @@ mvn clean package
 cp config/config.yaml.example config/config.yaml
 
 # 5. (Optional) Install global CLI utility
-./scripts/install-sams-util.sh
+./scripts/install-sam-util.sh
 
 # 6. Start the environment
 ./scripts/start.sh
-# Or use: sams-util start (if installed)
+# Or use: sam-util start (if installed)
 
-# Note: If using sams-util setup, all scripts are created automatically with executable permissions
+# Note: If using sam-util setup, all scripts are created automatically with executable permissions
 ```
 
 ## Daily Usage
 
 ```bash
 # Option 1: Using global CLI (from any directory)
-# Note: sams-util start automatically verifies and installs dependencies
-sams-util start      # Auto-verifies, installs deps, and starts services
-sams-util stop       # Stop all services
-sams-util restart    # Restart (auto-verifies and installs deps)
-sams-util status     # Check service status
+# Note: sam-util start automatically verifies and installs dependencies
+sam-util start      # Auto-verifies, installs deps, and starts services
+sam-util stop       # Stop all services
+sam-util restart    # Restart (auto-verifies and installs deps)
+sam-util status     # Check service status
 
 # Option 2: Using local scripts (from project root)
 ./scripts/start.sh
@@ -72,22 +72,22 @@ curl http://127.0.0.1:3000/hello
 
 ```bash
 # Using global CLI (recommended)
-sams-util setup             # Initialize project, verify, install deps, and start (Node.js default)
-sams-util setup --runtime python  # Initialize Python project (full auto-setup)
-sams-util setup --runtime java    # Initialize Java project (full auto-setup)
-sams-util start             # Start services (auto-verifies and installs deps)
-sams-util restart           # Force restart (auto-verifies and installs deps)
-sams-util stop              # Stop all services
-sams-util verify            # Verify setup manually
-sams-util db-setup         # Set up DynamoDB table manually
-sams-util deploy            # Deploy to AWS
-sams-util status            # Check service status
+sam-util setup             # Initialize project, verify, install deps, and start (Node.js default)
+sam-util setup --runtime python  # Initialize Python project (full auto-setup)
+sam-util setup --runtime java    # Initialize Java project (full auto-setup)
+sam-util start             # Start services (auto-verifies and installs deps)
+sam-util restart           # Force restart (auto-verifies and installs deps)
+sam-util stop              # Stop all services
+sam-util verify            # Verify setup manually
+sam-util db-setup         # Set up DynamoDB table manually
+sam-util deploy            # Deploy to AWS
+sam-util status            # Check service status
 
 # Getting help
-sams-util help              # General help
-sams-util help deploy       # Detailed deployment guide
-sams-util help profile      # AWS profile setup guide
-sams-util deploy --help     # Command-specific help
+sam-util help              # General help
+sam-util help deploy       # Detailed deployment guide
+sam-util help profile      # AWS profile setup guide
+sam-util deploy --help     # Command-specific help
 
 # Using local scripts
 ./scripts/start.sh --restart
@@ -97,21 +97,21 @@ sams-util deploy --help     # Command-specific help
 
 ## Getting Help
 
-The `sams-util` command provides comprehensive help:
+The `sam-util` command provides comprehensive help:
 
 ```bash
 # General help menu
-sams-util help
-sams-util --help
+sam-util help
+sam-util --help
 
 # Command-specific help
-sams-util help deploy       # Full deployment guide with prerequisites
-sams-util help profile      # How to set up and use AWS profiles
-sams-util help start        # Start command details
-sams-util help <command>    # Help for any command
+sam-util help deploy       # Full deployment guide with prerequisites
+sam-util help profile      # How to set up and use AWS profiles
+sam-util help start        # Start command details
+sam-util help <command>    # Help for any command
 
 # Alternative syntax
-sams-util deploy --help     # Same as: sams-util help deploy
+sam-util deploy --help     # Same as: sam-util help deploy
 ```
 
 **Help topics available:**

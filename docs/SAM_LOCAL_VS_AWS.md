@@ -34,7 +34,7 @@ SAM Local only connects to AWS when you:
    ```bash
    sam deploy --guided
    # or
-   sams-util deploy
+   sam-util deploy
    ```
    This actually creates resources in your AWS account.
 

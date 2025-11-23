@@ -93,7 +93,7 @@ The Lambda code (`src/app.js`) has a fallback mechanism:
 
 ### Setup Command
 
-The `sams-util setup` command:
+The `sam-util setup` command:
 - Detects network configuration
 - Sets appropriate endpoint in template
 - Uses `localhost` when host network is enabled

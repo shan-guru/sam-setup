@@ -405,11 +405,11 @@ if [ -f "scripts/setup-table.js" ]; then
         fi
     else
         echo -e "${YELLOW}⚠ Node.js not found, skipping table setup${NC}"
-        echo -e "${YELLOW}  Please run 'sams-util db-setup' manually after installing Node.js${NC}"
+        echo -e "${YELLOW}  Please run 'sam-util db-setup' manually after installing Node.js${NC}"
     fi
 else
     echo -e "${YELLOW}⚠ setup-table.js not found, skipping table setup${NC}"
-    echo -e "${YELLOW}  Please run 'sams-util db-setup' manually if needed${NC}"
+    echo -e "${YELLOW}  Please run 'sam-util db-setup' manually if needed${NC}"
 fi
 
 # Check for SAM template file
@@ -439,8 +439,8 @@ if lsof -ti:$SAM_PORT > /dev/null 2>&1; then
         # Check if it's actually using this port
         if lsof -ti:$SAM_PORT | grep -q "$(pgrep -f 'sam local start-api' | head -1)"; then
             echo -e "${GREEN}✓ Port $SAM_PORT: SAM Local API is already running${NC}"
-            echo -e "${YELLOW}If you want to restart, use: sams-util restart${NC}"
-            echo -e "${YELLOW}Or stop it first: sams-util stop${NC}"
+            echo -e "${YELLOW}If you want to restart, use: sam-util restart${NC}"
+            echo -e "${YELLOW}Or stop it first: sam-util stop${NC}"
             exit 0
         fi
     fi
@@ -512,7 +512,7 @@ if [ ! -d "$PROJECT_ROOT/src/node_modules" ]; then
             else
                 echo -e "${RED}Error: node_modules not found in project root!${NC}"
                 echo -e "${YELLOW}Please run: npm install${NC}"
-                echo -e "${YELLOW}Or run: sams-util verify (to check all prerequisites)${NC}"
+                echo -e "${YELLOW}Or run: sam-util verify (to check all prerequisites)${NC}"
                 exit 1
             fi
             ;;
